@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Nuevo partido · Smashr</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,500;0,600;0,700;0,800;1,600;1,700;1,800&family=Barlow:wght@400;500;600;700&family=Oswald:wght@500;600;700&family=Rajdhani:wght@500;600;700&display=swap">
+<link rel="stylesheet" href="stage.css">
+<link rel="stylesheet" href="admin.css">
+<script src="core.js"></script>
+<script src="stage.js"></script>
+</head>
+<body>
+<script src="admin.js"></script>
+<style>
+.team-card{border-top:4px solid var(--team-a)}
+.team-card.b{border-top-color:var(--team-b)}
+.pl{display:grid;gap:8px;padding:10px;border:1px solid var(--line);border-radius:8px;background:var(--surface-2)}
+.pl .row .field{flex:1 1 120px}
+.pl-photo{display:flex;align-items:center;gap:10px}
+.pl-photo img{width:44px;height:44px;border-radius:50%;object-fit:cover;border:2px solid var(--accent)}
+.fmt-desc{background:var(--surface-2);border-radius:8px;padding:10px 12px;font-weight:600}
+.actions{display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end}
+</style>
+<main class="page">
+  <div class="page-head"><div><h1>Nuevo partido</h1><p>Cargá los datos, elegí el formato y pasás directo a la puntuación.</p></div></div>
+
+  <section class="card">
+    <h2>Datos del partido</h2>
+    <div class="row">
+      <label class="field" for="event">Evento / torneo / liga<input id="event" type="text" list="eventList" placeholder="Torneo Apertura 2026"></label>
+      <label class="field" for="court">Cancha<input id="court" type="text" list="courtList" placeholder="Cancha 1"></label>
+    </div>
+    <div class="row">
+      <label class="field" for="round">Instancia<select id="round">
+        <option>Fase de grupos</option><option>Octavos de final</option><option>Cuartos de final</option><option>Semifinal</option><option selected>Final</option><option>Fecha de liga</option><option>Amistoso / exhibición</option></select></label>
+      <label class="field" for="cat">Categoría<input id="cat" type="text" placeholder="Femenino · 6ta"></label>
+      <label class="field" for="time">Horario (opcional)<input id="time" type="text" placeholder="21:30"></label>
+    </div>
+    <datalist id="eventList"></datalist><datalist id="courtList"></datalist>
+    <p class="hint">Link público del tablero: <span class="copy" id="linkPrev"></span></p>
+  </section>
+
+  <div class="grid2">
+    <section class="card team-card"><h2>Pareja A</h2><div id="teamA" style="display:grid;gap:10px"></div></section>
+    <section class="card team-card b"><h2>Pareja B</h2><div id="teamB" style="display:grid;gap:10px"></div></section>
+  </div>
+
+  <section class="card">
+    <h2>Formato del partido</h2>
+    <label class="field" for="preset">Plantilla<select id="preset"></select></label>
+    <div class="fmt-desc" id="fmtDesc"></div>
+    <details id="customBox">
+      <summary>Personalizar reglas</summary>
+      <div style="display:grid;gap:10px;margin-top:10px">
+        <div class="row">
+          <label class="field" for="cSets">Sets a ganar<select id="cSets"><option value="1">1 (set único)</option><option value="2">2 (mejor de 3)</option><option value="3">3 (mejor de 5)</option></select></label>
+          <label class="field" for="cGames">Games por set<input id="cGames" type="number" min="2" max="12"></label>
+          <label class="field" for="cDeuce">En 40-40<select id="cDeuce"><option value="advantage">Ventaja clásica</option><option value="golden">Punto de oro</option><option value="star">Star point (2 ventajas + punto decisivo)</option></select></label>
+        </div>
+        <div class="row">
+          <label class="field" for="cTb">Tie-break<select id="cTb"><option value="1">Sí</option><option value="0">No (diferencia de 2)</option></select></label>
+          <label class="field" for="cTbAt">Tie-break en iguales a<input id="cTbAt" type="number" min="2" max="12"></label>
+          <label class="field" for="cTbPts">Tie-break a<input id="cTbPts" type="number" min="5" max="21"></label>
+          <label class="field" for="cWin2">Cierre del tie-break<select id="cWin2"><option value="1">Diferencia de 2</option><option value="0">Muere en el número</option></select></label>
+        </div>
+        <div class="row">
+          <label class="field" for="cDec">Set decisivo<select id="cDec"><option value="set">Set completo</option><option value="supertb">Super tie-break</option></select></label>
+          <label class="field" for="cStb">Super TB a<input id="cStb" type="number" min="5" max="21"></label>
+        </div>
+      </div>
+    </details>
+  </section>
+
+  <div class="actions">
+    <button class="btn" id="saveBtn" type="button">Guardar como programado</button>
+    <button class="btn primary" id="goBtn" type="button">Crear y pasar a puntuación</button>
+  </div>
+</main>
+
+<script>
+shell('nuevo.html');
+const org=requireOrg();
+const $=id=>document.getElementById(id);
+const mine=Store.orgMatches(org.id);
+$('eventList').innerHTML=[...new Set(mine.map(m=>m.event))].map(v=>`<option value="${esc(v)}">`).join('');
+$('courtList').innerHTML=[...new Set(mine.map(m=>m.court))].map(v=>`<option value="${esc(v)}">`).join('');
+$('event').value=mine[0]?.event||''; $('court').value='Cancha 1';
+
+const players=[[{},{}],[{},{}]];
+function plHTML(k,j){
+  const id=`p${k}${j}`;
+  return `<div class="pl"><b>Jugador ${j+1}</b>
+    <div class="row">
+      <label class="field" for="${id}f">Nombre<input id="${id}f" type="text" data-k="${k}" data-j="${j}" data-f="first"></label>
+      <label class="field" for="${id}l">Apellido<input id="${id}l" type="text" data-k="${k}" data-j="${j}" data-f="last"></label>
+    </div>
+    <div class="pl-photo"><span class="btn sm file">Foto (opcional)<input id="${id}p" type="file" accept="image/*" data-k="${k}" data-j="${j}" data-f="photo" aria-label="Foto jugador ${j+1}"></span><span id="${id}img"></span></div>
+    <details><summary>Datos para la ficha (opcional)</summary>
+      <div class="row" style="margin-top:8px">
+        <label class="field" for="${id}r">Ranking<input id="${id}r" type="number" data-k="${k}" data-j="${j}" data-f="rank"></label>
+        <label class="field" for="${id}a">Edad<input id="${id}a" type="number" data-k="${k}" data-j="${j}" data-f="age"></label>
+        <label class="field" for="${id}s">Posición<select id="${id}s" data-k="${k}" data-j="${j}" data-f="side"><option>Drive</option><option>Revés</option></select></label>
+        <label class="field" for="${id}h">Mano<select id="${id}h" data-k="${k}" data-j="${j}" data-f="hand"><option>Derecha</option><option>Zurda</option></select></label>
+      </div></details></div>`;
+}
+$('teamA').innerHTML=plHTML(0,0)+plHTML(0,1);
+$('teamB').innerHTML=plHTML(1,0)+plHTML(1,1);
+document.addEventListener('change',async e=>{
+  const d=e.target.dataset; if(!d.f) return;
+  if(d.f==='photo'){ const f=e.target.files[0]; if(!f) return; players[d.k][d.j].photo=await readFile(f); $(`p${d.k}${d.j}img`).innerHTML=`<img src="${players[d.k][d.j].photo}" alt="">`; return; }
+  players[d.k][d.j][d.f]=e.target.value;
+});
+document.addEventListener('input',e=>{ const d=e.target.dataset; if(d.f&&d.f!=='photo') players[d.k][d.j][d.f]=e.target.value; updLink(); });
+
+/* formato */
+$('preset').innerHTML=Object.entries(PRESETS).map(([k,p])=>`<option value="${k}">${esc(p.label)}</option>`).join('');
+const CF=[['cSets','setsToWin',Number],['cGames','gamesPerSet',Number],['cTb','tiebreak',v=>v==='1'],['cTbAt','tiebreakAt',Number],['cTbPts','tbPoints',Number],['cWin2','tbWinBy2',v=>v==='1'],['cDeuce','deuce',String],['cDec','decider',String],['cStb','superTbPoints',Number]];
+let draft;
+function fillCfg(c){ draft=clone(c); delete draft.label; CF.forEach(([id,key])=>{ const v=c[key]; $(id).value= typeof v==='boolean'?(v?'1':'0'):v; }); $('fmtDesc').textContent=describeCfg(draft); }
+$('preset').onchange=e=>{ const k=e.target.value; if(k==='custom'){ $('customBox').open=true; return; } fillCfg(PRESETS[k]); };
+CF.forEach(([id,key,conv])=>$(id).addEventListener('change',()=>{ draft[key]=conv($(id).value); if(draft.tiebreakAt>draft.gamesPerSet){ draft.tiebreakAt=draft.gamesPerSet; $('cTbAt').value=draft.tiebreakAt; } $('preset').value='custom'; $('fmtDesc').textContent=describeCfg(draft); }));
+$('preset').value='oro'; fillCfg(PRESETS.oro);
+
+function updLink(){ $('linkPrev').textContent=`smashr.com.ar/${org.slug}/${slugify($('event').value)||'evento'}/${slugify($('court').value)||'cancha'}/tablero`; }
+['event','court'].forEach(id=>$(id).addEventListener('input',updLink)); updLink();
+
+function create(go){
+  const missing=players.flat().some(p=>!(p.last||'').trim());
+  if(!$('event').value.trim()||!$('court').value.trim()){ toast('Completá evento y cancha'); return; }
+  if(missing){ toast('Falta el apellido de algún jugador'); return; }
+  const teams=players.map(t=>({players:t.map(p=>({first:p.first||'',last:p.last.trim(),country:'ARG',rank:p.rank||'-',age:p.age||'-',side:p.side||'Drive',hand:p.hand||'Derecha',points:0,photo:p.photo||null}))}));
+  const m=makeMatch(org.id,{event:$('event').value.trim(),court:$('court').value.trim(),round:$('round').value,cat:$('cat').value.trim(),scheduledAt:$('time').value.trim(),teams,presetKey:$('preset').value,cfg:draft});
+  Store.data.matches[m.id]=m;
+  if(!Store.save()){ toast('No se pudo guardar: probá con fotos más livianas'); delete Store.data.matches[m.id]; return; }
+  location.href = go ? Routes.control(m) : 'index.html';
+}
+$('saveBtn').onclick=()=>create(false);
+$('goBtn').onclick=()=>create(true);
+</script>
+
+</body>
+</html>

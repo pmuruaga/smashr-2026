@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Puntuación · Smashr</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,500;0,600;0,700;0,800;1,600;1,700;1,800&family=Barlow:wght@400;500;600;700&family=Oswald:wght@500;600;700&family=Rajdhani:wght@500;600;700&display=swap">
+<link rel="stylesheet" href="stage.css">
+<link rel="stylesheet" href="admin.css">
+<script src="core.js"></script>
+<script src="stage.js"></script>
+</head>
+<body>
+<script src="admin.js"></script>
+<style>
+.ctl{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:18px;align-items:start}
+@media (max-width:980px){.ctl{grid-template-columns:minmax(0,1fr)}}
+.head-meta{color:var(--muted)}
+.teamBtn{width:100%;display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:12px;align-items:center;text-align:left;padding:14px;border-radius:10px;border:0;cursor:pointer;color:#fff;background:var(--team-a);min-height:118px;touch-action:manipulation}
+.teamBtn.b{background:var(--team-b)}
+.teamBtn:active{transform:scale(.99);filter:brightness(1.08)}
+.teamBtn[disabled]{opacity:.55;cursor:default}
+.teamBtn .names{display:grid;gap:2px;min-width:0}
+.teamBtn .names span{font-family:var(--display);font-weight:700;font-size:26px;line-height:1.05;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.teamBtn .sets{display:flex;gap:6px}
+.teamBtn .sets b{font-family:var(--display);font-size:28px;min-width:30px;text-align:center;background:rgba(0,0,0,.22);border-radius:5px;padding:2px 4px}
+.teamBtn .pts{font-family:var(--display);font-weight:800;font-size:56px;min-width:96px;text-align:center;background:#fff;color:#111;border-radius:8px;line-height:1.1}
+.teamBtn .fn{font-size:inherit;font-weight:500}
+@media (max-width:600px){.teamBtn .fn{display:none}.teamBtn{padding:12px;gap:8px}.teamBtn .pts{min-width:76px;font-size:46px}.teamBtn .sets b{font-size:24px;min-width:26px}}
+.serve{display:inline-block;width:14px;height:14px;border-radius:50%;background:#e6f24a;box-shadow:0 0 0 2px rgba(0,0,0,.25);margin-right:6px;vertical-align:middle}
+.statusbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;min-height:30px}
+.cbadge{font-family:var(--display);font-weight:700;letter-spacing:.06em;text-transform:uppercase;font-size:15px;padding:4px 10px;border-radius:5px;background:var(--surface-2);border:1px solid var(--line)}
+.cbadge.hot{background:var(--text);color:var(--bg);border-color:var(--text)}
+.cbadge.end{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.scenes{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.scene{display:grid;gap:6px;padding:12px;border:1px solid var(--line);border-radius:9px;background:var(--surface-2);text-align:left;cursor:pointer}
+.scene b{font-family:var(--display);font-size:19px;letter-spacing:.02em}
+.scene small{color:var(--muted)}
+.scene.on{border-color:var(--live);box-shadow:inset 0 0 0 1px var(--live)}
+.scene.on::after{content:"AL AIRE";justify-self:start;font-size:11px;font-weight:800;letter-spacing:.1em;color:#fff;background:var(--live);padding:2px 7px;border-radius:4px}
+.scene select{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:4px 6px;font-size:13px}
+.timerbox{display:flex;flex-wrap:wrap;gap:10px;align-items:center;padding:10px 12px;border-radius:8px;background:color-mix(in oklab,var(--live) 10%,var(--surface));border:1px solid color-mix(in oklab,var(--live) 35%,transparent)}
+.timerbox .t{font-family:var(--display);font-size:34px;font-weight:800}
+</style>
+<main class="page">
+  <div class="page-head">
+    <div><h1 id="title">Puntuación</h1><p class="head-meta" id="meta"></p></div>
+    <div class="row"><a class="btn" href="index.html">← Partidos</a><a class="btn" id="openTv" target="_blank" rel="noopener">Abrir tablero ↗</a></div>
+  </div>
+
+  <div class="ctl">
+    <div style="display:grid;gap:18px">
+      <section class="card">
+        <div class="row" style="justify-content:space-between"><h2>Marcador</h2><span id="pill"></span></div>
+        <button class="teamBtn" id="tA" type="button"></button>
+        <div class="statusbar" id="status"></div>
+        <button class="teamBtn b" id="tB" type="button"></button>
+        <div class="row">
+          <button class="btn" id="undoBtn" type="button">↶ Deshacer</button>
+          <button class="btn" id="srvBtn" type="button">Cambiar saque</button>
+          <span class="hint" id="fmt"></span>
+        </div>
+        <p class="hint">Tocá la pareja que gana el punto. Atajos en compu: <b>1</b> / <b>2</b> y <b>Z</b> para deshacer. Al anotar, el tablero vuelve solo al marcador.</p>
+      </section>
+
+      <section class="card">
+        <h2>Qué muestra el tablero</h2>
+        <div id="timerBox"></div>
+        <div class="scenes" id="scenes"></div>
+      </section>
+    </div>
+
+    <div style="display:grid;gap:18px">
+      <section class="card">
+        <div class="row" style="justify-content:space-between"><h2>Vista del tablero</h2><span class="hint">en vivo</span></div>
+        <div class="preview" id="preview"></div>
+      </section>
+      <section class="card">
+        <h2>Compartir</h2>
+        <p class="hint">Link público para la Smart TV y para el público (QR). Cada partido tiene el suyo, así podés tener varias canchas en simultáneo.</p>
+        <div class="copy" id="realLink"></div>
+        <div class="row"><button class="btn sm" id="copyBtn" type="button">Copiar link</button></div>
+        <p class="hint">En este prototipo, el tablero abre en otra pestaña y se actualiza solo. Probá controlar desde una pestaña y mirar desde otra.</p>
+      </section>
+    </div>
+  </div>
+</main>
+
+<script>
+shell('');
+const org=requireOrg();
+const $=id=>document.getElementById(id);
+const mid=location.hash.slice(1);
+const M=()=>Store.match(mid);
+if(!M()||M().orgId!==org.id){ document.querySelector('.ctl').innerHTML='<p class="hint">No encontramos ese partido en tu organización. Volvé a <a href="index.html">Partidos</a>.</p>'; throw new Error('sin partido'); }
+
+const rot=()=>Math.floor(Date.now()/((Store.org().rotSec||8)*1000));
+const prev=mountStage($('preview'), ()=>({m:M(), org:Store.org(), rot:rot()}));
+
+const WARM=[3,5,7,10], BRK=[60,90,120];
+function sceneButtons(m){
+  const cur=m.display.scene;
+  const sel=(id,opts,unit)=>`<select id="${id}" aria-label="Duración" onclick="event.stopPropagation()">${opts.map(o=>`<option value="${o}">${unit==='m'?o+' min':o+' s'}</option>`).join('')}</select>`;
+  const b=(key,label,hint,extra='',data='')=>`<div class="scene ${cur===key&&(key!=='bio'||String(m.display.bioTeam)===data)?'on':''}" role="button" tabindex="0" data-scene="${key}" data-team="${data}"><b>${label}</b><small>${hint}</small>${extra}</div>`;
+  return b('score','Marcador','Pantalla principal')
+    + b('warmup','Calentamiento','Reloj + publicidad', sel('selWarm',WARM,'m'))
+    + b('break','Pausa / cambio de lado','Sponsor + marcador', sel('selBrk',BRK,'s'))
+    + b('h2h','Cara a cara','Antes de que entren')
+    + b('summary','Resumen del set','Al cerrar un set')
+    + b('bio','Ficha pareja A',esc(teamName(m,0)),'', '0')
+    + b('bio','Ficha pareja B',esc(teamName(m,1)),'', '1')
+    + b('next','Próximo partido','Entre partidos');
+}
+let lastScenesKey='';
+function render(){
+  const m=M(), st=m.state, lab=pointLabels(st), n=st.cfg.setsToWin*2-1;
+  $('title').textContent=`${m.court} · ${m.round}`;
+  $('meta').textContent=`${m.event} · ${m.cat}`;
+  $('openTv').href=Routes.tablero(m);
+  $('realLink').textContent='https://'+Routes.realTablero(org,m);
+  $('pill').innerHTML=statusPill(m);
+  $('fmt').textContent=describeCfg(st.cfg);
+  ['tA','tB'].forEach((id,k)=>{
+    const el=$(id), sets=st.sets.map(s=>`<b class="tnum">${s.tb&&s.tb.super?s.tb.p[k]:s.g[k]}</b>`).join('');
+    el.disabled=st.finished;
+    el.innerHTML=`<div class="names">${m.teams[k].players.map((p,j)=>`<span>${j===0&&!st.finished&&st.server===k?'<i class="serve" title="Saca"></i>':''}<small class="fn">${esc(p.first)} </small>${esc(p.last)}</span>`).join('')}</div>
+      <div class="sets">${sets}</div><div class="pts tnum">${st.finished?(st.winner===k?'🏆':'–'):lab[k]}</div>`;
+    el.setAttribute('aria-label',`Punto para ${teamName(m,k)}`);
+  });
+  $('status').innerHTML=statusBadges(st).map(b=>`<span class="cbadge ${b.k}">${esc(b.l)}</span>`).join('');
+  const key=m.display.scene+'|'+m.display.bioTeam+'|'+teamName(m,0)+teamName(m,1);
+  if(key!==lastScenesKey){ const w=$('selWarm')?.value, b=$('selBrk')?.value; $('scenes').innerHTML=sceneButtons(m); if(w) $('selWarm').value=w; else $('selWarm').value=5; if(b) $('selBrk').value=b; else $('selBrk').value=90; lastScenesKey=key; }
+  renderTimer();
+  prev.render();
+}
+function renderTimer(){
+  const m=M(), d=m.display, left=timerLeft(d);
+  $('timerBox').innerHTML = d.timerEndsAt ? `<div class="timerbox"><span>${esc(SCENES[d.scene].label)}:</span><span class="t tnum">${left?fmtTimer(left):'Terminado'}</span>
+    <button class="btn sm" type="button" data-add="60">+1 min</button><button class="btn sm" type="button" data-scene="score">Volver al marcador</button></div>` : '';
+}
+$('tA').onclick=()=>{ Actions.point(M(),0); render(); };
+$('tB').onclick=()=>{ Actions.point(M(),1); render(); };
+$('undoBtn').onclick=()=>{ Actions.undo(M()); render(); };
+$('srvBtn').onclick=()=>{ Actions.toggleServe(M()); render(); };
+document.addEventListener('click',e=>{
+  const add=e.target.closest('[data-add]'); if(add){ Actions.addTime(M(),Number(add.dataset.add)); render(); return; }
+  const s=e.target.closest('[data-scene]'); if(!s || e.target.tagName==='SELECT') return;
+  const scene=s.dataset.scene;
+  const sec = scene==='warmup' ? Number($('selWarm').value)*60 : scene==='break' ? Number($('selBrk').value) : undefined;
+  Actions.scene(M(),scene,{sec, bioTeam: s.dataset.team!==''&&s.dataset.team!==undefined ? Number(s.dataset.team) : undefined});
+  render();
+});
+document.addEventListener('keydown',e=>{
+  if(e.target.closest('[data-scene]') && (e.key==='Enter'||e.key===' ')){ e.preventDefault(); e.target.click(); return; }
+  if(['INPUT','SELECT','TEXTAREA'].includes(document.activeElement.tagName)) return;
+  if(e.key==='1') $('tA').click(); else if(e.key==='2') $('tB').click(); else if(e.key==='z'||e.key==='Z') $('undoBtn').click();
+});
+$('copyBtn').onclick=()=>copyText($('realLink').textContent,$('realLink'));
+Store.onChange(render);
+setInterval(()=>{ renderTimer(); prev.render(); },1000);
+render();
+</script>
+
+</body>
+</html>

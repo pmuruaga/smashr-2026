@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Tablero · Smashr</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,500;0,600;0,700;0,800;1,600;1,700;1,800&family=Barlow:wght@400;500;600;700&family=Oswald:wght@500;600;700&family=Rajdhani:wght@500;600;700&display=swap">
+<link rel="stylesheet" href="stage.css">
+<link rel="stylesheet" href="admin.css">
+<script src="core.js"></script>
+<script src="stage.js"></script>
+</head>
+<body>
+<style>
+html,body{height:100%;margin:0;background:#000;overflow:hidden}
+#tv{position:fixed;inset:0;background:#000;cursor:pointer}
+#tv .stage{position:absolute}
+.hintfs{position:fixed;right:16px;bottom:calc(14px + env(safe-area-inset-bottom,0px));font:600 12px var(--body);color:rgba(255,255,255,.55);background:rgba(0,0,0,.5);padding:6px 10px;border-radius:6px;pointer-events:none;transition:opacity .4s}
+.pick{position:fixed;inset:0;overflow:auto;background:var(--bg);padding-inline:16px;padding-block:30px}
+.pick .card{max-width:640px;margin:0 auto}
+</style>
+<div id="tv" title="Tocá para pantalla completa"></div>
+<div class="hintfs" id="hintfs">Tocá la pantalla para verla completa</div>
+<div class="pick" id="pick" hidden><div class="card"><h1>Elegí un tablero</h1><p class="hint">En producción cada tablero tiene su link: smashr.com.ar/organizador/evento/cancha/tablero</p><div id="plist" style="display:grid;gap:8px"></div></div></div>
+<script>
+Store.load();
+const mid=location.hash.slice(1);
+function showPicker(){
+  document.getElementById('tv').hidden=true; document.getElementById('hintfs').hidden=true; document.getElementById('pick').hidden=false;
+  document.getElementById('plist').innerHTML=Object.values(Store.data.matches).filter(m=>m.status!=='finished').map(m=>{
+    const o=Store.data.orgs[m.orgId]; return `<a class="btn" href="tablero.html#${m.id}" onclick="setTimeout(()=>location.reload(),0)">${esc(o.name)} · ${esc(m.court)} · ${esc(teamName(m,0))} vs ${esc(teamName(m,1))}</a>`; }).join('');
+}
+if(!mid || !Store.match(mid)) showPicker();
+else {
+  const ctx=()=>{ const m=Store.match(mid); return m?{m, org:Store.data.orgs[m.orgId], rot:Math.floor(Date.now()/((Store.data.orgs[m.orgId].rotSec||8)*1000))}:null; };
+  const tv=mountStage(document.getElementById('tv'), ctx, {fitHeight:true});
+  tv.render(true);
+  Store.onChange(()=>tv.render());
+  setInterval(()=>tv.render(),1000);
+  window.addEventListener('resize',tv.fit);
+  document.getElementById('tv').onclick=()=>{ const el=document.documentElement; if(!document.fullscreenElement && el.requestFullscreen) el.requestFullscreen().catch(()=>{}); };
+  setTimeout(()=>document.getElementById('hintfs').style.opacity=0,4000);
+  try{ navigator.wakeLock && navigator.wakeLock.request('screen').catch(()=>{}); }catch(e){}
+}
+window.addEventListener('hashchange',()=>location.reload());
+</script>
+
+</body>
+</html>

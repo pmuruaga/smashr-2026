@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Smashr Mesa de Control</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,500;0,600;0,700;0,800;1,600;1,700;1,800&family=Barlow:wght@400;500;600;700&family=Oswald:wght@500;600;700&family=Rajdhani:wght@500;600;700&display=swap">
+<link rel="stylesheet" href="stage.css">
+<link rel="stylesheet" href="admin.css">
+<script src="core.js"></script>
+<script src="stage.js"></script>
+</head>
+<body>
+<script src="admin.js"></script>
+<style>
+.login{min-height:100%;display:grid;place-items:center;padding-inline:16px;padding-block:40px}
+.login .card{width:min(440px,100%)}
+.login .brand{font-size:40px;text-align:center;display:block}
+.acc{display:grid;gap:8px}
+.acc button{display:flex;justify-content:space-between;gap:10px;text-align:left}
+.acc small{color:var(--muted);font-weight:500}
+.mlist{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:14px}
+.mcard{display:grid;gap:10px}
+.mcard .top{display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap}
+.mcard .court{font-family:var(--display);font-weight:700;font-size:22px;letter-spacing:.03em}
+.mcard .meta{color:var(--muted);font-size:13px}
+.score{display:grid;grid-template-columns:1fr auto auto;gap:4px 12px;align-items:center;background:var(--surface-2);border-radius:8px;padding:10px 12px}
+.score .tn{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.score .sets{font-family:var(--display);font-size:20px;font-weight:700;color:var(--muted)}
+.score .pt{font-family:var(--display);font-size:22px;font-weight:800;min-width:42px;text-align:center;background:var(--accent);color:var(--accent-ink);border-radius:5px}
+.score .win{color:var(--text)}
+.onair{font-size:13px;color:var(--muted)}
+.onair b{color:var(--text)}
+.section-t{display:flex;align-items:center;gap:10px}
+.section-t .n{color:var(--muted);font-weight:600;font-family:var(--body);font-size:14px;text-transform:none;letter-spacing:0}
+.empty{color:var(--muted);font-size:14px;padding:6px 0}
+</style>
+
+<div id="loginView" class="login" hidden>
+  <div class="card">
+    <span class="brand">SMASH<span>R</span></span>
+    <p class="hint" style="text-align:center">Mesa de Control · ingresá con tu cuenta de organizador</p>
+    <label class="field" for="email">Email<input id="email" type="text" autocomplete="username" value="demo@smashr.com.ar"></label>
+    <label class="field" for="pass">Contraseña<input id="pass" type="password" value="demo1234"></label>
+    <button class="btn primary" id="loginBtn" type="button">Ingresar</button>
+    <p class="hint">Cuentas de prueba (cada una es un organizador distinto, con sus partidos, sponsors y marca):</p>
+    <div class="acc" id="accounts"></div>
+    <button class="btn sm" id="resetBtn" type="button">Restaurar datos de ejemplo</button>
+  </div>
+</div>
+
+<main id="dashView" class="page" hidden>
+  <div class="page-head">
+    <div><h1>Partidos</h1><p id="orgLine"></p></div>
+    <a class="btn primary" href="nuevo.html">+ Nuevo partido</a>
+  </div>
+  <section class="card"><h2 class="section-t">En juego <span class="n" id="nLive"></span></h2><div class="mlist" id="live"></div></section>
+  <section class="card"><h2 class="section-t">Programados <span class="n" id="nSched"></span></h2><div class="mlist" id="sched"></div></section>
+  <section class="card"><h2 class="section-t">Finalizados <span class="n" id="nDone"></span></h2><div class="mlist" id="done"></div></section>
+</main>
+
+<script>
+function showLogin(){
+  document.getElementById('loginView').hidden=false;
+  document.getElementById('accounts').innerHTML=Object.values(Store.data.orgs).map(o=>`<button class="btn" type="button" data-org="${o.id}"><span>${esc(o.name)}</span><small>${esc(o.email)}</small></button>`).join('');
+  document.getElementById('accounts').onclick=e=>{ const b=e.target.closest('[data-org]'); if(b){ document.getElementById('email').value=Store.data.orgs[b.dataset.org].email; } };
+  document.getElementById('loginBtn').onclick=()=>{
+    const em=document.getElementById('email').value.trim().toLowerCase();
+    const org=Object.values(Store.data.orgs).find(o=>o.email===em);
+    if(!org){ toast('No hay un organizador con ese email'); return; }
+    Store.data.session.orgId=org.id; Store.save(); location.reload();
+  };
+  document.getElementById('resetBtn').onclick=()=>{ Store.reset(); toast('Datos de ejemplo restaurados'); showLogin(); };
+}
+function card(m){
+  const st=m.state, lab=pointLabels(st), org=Store.org();
+  const sc=SCENES[m.display.scene], left=timerLeft(m.display);
+  const row=k=>`<div class="tn">${!st.finished&&st.startedAt&&st.server===k?'<i class="dot-serve" title="Saca"></i>':''}${esc(teamName(m,k))}</div>
+     <div class="sets tnum ${st.winner===k?'win':''}">${scoreLine(m,k)}</div>
+     ${m.status==='live'&&!st.finished?`<div class="pt tnum">${lab[k]}</div>`:'<div></div>'}`;
+  return `<article class="card mcard">
+    <div class="top"><span class="court">${esc(m.court)}</span>${statusPill(m)}</div>
+    <div class="meta">${esc(m.event)} · ${esc(m.round)} · ${esc(m.cat)}</div>
+    <div class="score">${row(0)}${row(1)}</div>
+    ${m.status!=='finished'?`<div class="onair">En el tablero: <b>${esc(sc.label)}</b>${left?' · <span class="tnum" data-left="'+m.id+'">'+fmtTimer(left)+'</span>':''}</div>`:''}
+    <div class="row">
+      ${m.status!=='finished'?`<a class="btn primary sm" href="${Routes.control(m)}">Controlar</a>`:''}
+      <a class="btn sm" href="${Routes.tablero(m)}" target="_blank" rel="noopener">Abrir tablero ↗</a>
+      <button class="btn sm" type="button" data-copy="${m.id}">Copiar link público</button>
+    </div>
+  </article>`;
+}
+function renderDash(){
+  const org=Store.org(); if(!org){ return; }
+  document.getElementById('orgLine').textContent=`${org.name} · cada partido tiene su propio tablero y se puede controlar desde cualquier dispositivo.`;
+  const ms=Store.orgMatches(org.id);
+  const put=(id,nid,list,emptyMsg)=>{ document.getElementById(id).innerHTML=list.map(card).join('')||`<p class="empty">${emptyMsg}</p>`; document.getElementById(nid).textContent=list.length; };
+  put('live','nLive',ms.filter(m=>m.status==='live'),'No hay partidos en juego.');
+  put('sched','nSched',ms.filter(m=>m.status==='scheduled'),'No hay partidos programados.');
+  put('done','nDone',ms.filter(m=>m.status==='finished'),'Todavía no terminó ningún partido.');
+}
+document.addEventListener('click',e=>{
+  const b=e.target.closest('[data-copy]'); if(!b) return;
+  const m=Store.match(b.dataset.copy); copyText('https://'+Routes.realTablero(Store.org(),m));
+});
+
+if(Store.org()){ shell('index.html'); document.getElementById('dashView').hidden=false; renderDash(); Store.onChange(renderDash); setInterval(()=>document.querySelectorAll('[data-left]').forEach(el=>{ const m=Store.match(el.dataset.left); el.textContent=fmtTimer(timerLeft(m.display)); }),1000); }
+else showLogin();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Sponsors · Smashr</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,500;0,600;0,700;0,800;1,600;1,700;1,800&family=Barlow:wght@400;500;600;700&family=Oswald:wght@500;600;700&family=Rajdhani:wght@500;600;700&display=swap">
+<link rel="stylesheet" href="stage.css">
+<link rel="stylesheet" href="admin.css">
+<script src="core.js"></script>
+<script src="stage.js"></script>
+</head>
+<body>
+<script src="admin.js"></script>
+<style>
+.splist{display:grid;gap:12px}
+.sp-row{display:grid;grid-template-columns:240px minmax(0,1fr) auto;gap:14px;align-items:center}
+@media (max-width:720px){.sp-row{grid-template-columns:minmax(0,1fr)}}
+.sp-img{aspect-ratio:4/1;max-width:100%;border-radius:6px;overflow:hidden;background:#000;border:1px solid var(--line)}
+.sp-img img{width:100%;height:100%;object-fit:contain;display:block}
+.sp-row.off{opacity:.55}
+.checks{display:flex;flex-wrap:wrap;gap:14px}
+.ord{display:flex;gap:6px;flex-wrap:wrap}
+.drop{border:2px dashed var(--line);border-radius:10px;padding:18px;text-align:center;color:var(--muted)}
+</style>
+<main class="page">
+  <div class="page-head"><div><h1>Sponsors</h1><p>Lo que cargues acá rota en todos los tableros de tu organización.</p></div></div>
+  <section class="card">
+    <h2>Rotación</h2>
+    <div class="row">
+      <label class="field" for="rot" style="max-width:220px">Segundos por sponsor<input id="rot" type="number" min="3" max="60"></label>
+      <p class="hint" style="flex:2 1 300px"><b>Banner del marcador</b>: los dos espacios de abajo del marcador (ideal 4:1, ej. 1200×300). <b>Pantalla completa</b>: calentamiento y pausa/cambio de lado (ideal 16:9, ej. 1920×1080). Cualquier otra proporción se muestra completa, sin recortes.</p>
+    </div>
+  </section>
+  <section class="card">
+    <div class="row" style="justify-content:space-between"><h2>Tus sponsors</h2>
+      <span class="btn primary file">+ Agregar sponsor<input id="up" type="file" accept="image/*" multiple aria-label="Agregar sponsor"></span></div>
+    <div class="splist" id="list"></div>
+  </section>
+</main>
+<script>
+shell('sponsors.html');
+const org=requireOrg();
+const $=id=>document.getElementById(id);
+let confirmId=null;
+function render(){
+  const o=Store.org();
+  $('rot').value=o.rotSec;
+  $('list').innerHTML=o.sponsors.map((s,i)=>`<div class="sp-row card ${s.active?'':'off'}">
+    <div class="sp-img"><img src="${s.img}" alt="${esc(s.name)}"></div>
+    <div style="display:grid;gap:8px">
+      <label class="field" for="n${s.id}">Nombre<input id="n${s.id}" type="text" value="${esc(s.name)}" data-id="${s.id}" data-f="name"></label>
+      <div class="checks">
+        <label class="switch"><input type="checkbox" ${s.active?'checked':''} data-id="${s.id}" data-f="active">Activo</label>
+        <label class="switch"><input type="checkbox" ${s.banner?'checked':''} data-id="${s.id}" data-f="banner">Banner del marcador</label>
+        <label class="switch"><input type="checkbox" ${s.full?'checked':''} data-id="${s.id}" data-f="full">Pantalla completa</label>
+      </div>
+    </div>
+    <div class="ord">
+      <button class="btn sm" type="button" data-mv="-1" data-id="${s.id}" ${i===0?'disabled':''} aria-label="Subir">↑</button>
+      <button class="btn sm" type="button" data-mv="1" data-id="${s.id}" ${i===o.sponsors.length-1?'disabled':''} aria-label="Bajar">↓</button>
+      <span class="btn sm file">Cambiar imagen<input type="file" accept="image/*" data-id="${s.id}" data-f="img" aria-label="Cambiar imagen"></span>
+      <button class="btn sm danger" type="button" data-del="${s.id}">${confirmId===s.id?'¿Seguro? Tocá de nuevo':'Quitar'}</button>
+    </div></div>`).join('') || '<div class="drop">Todavía no cargaste sponsors. Agregá el primero con el botón de arriba.</div>';
+}
+const find=id=>Store.org().sponsors.find(s=>s.id===id);
+$('rot').onchange=e=>{ Store.org().rotSec=Math.max(3,Number(e.target.value)||8); Store.save(); toast('Rotación actualizada'); };
+$('up').onchange=async e=>{
+  for(const f of e.target.files){ Store.org().sponsors.push({id:uid('s'),name:f.name.replace(/\.[^.]+$/,''),img:await readFile(f),active:true,banner:true,full:true}); }
+  e.target.value=''; if(!Store.save()) toast('No se pudo guardar: la imagen es muy pesada'); else toast('Sponsor agregado'); render();
+};
+$('list').addEventListener('change',async e=>{
+  const d=e.target.dataset, s=d.id&&find(d.id); if(!s) return;
+  if(d.f==='img'){ const f=e.target.files[0]; if(f){ s.img=await readFile(f); } }
+  else if(e.target.type==='checkbox') s[d.f]=e.target.checked;
+  else s[d.f]=e.target.value;
+  Store.save(); render();
+});
+$('list').addEventListener('click',e=>{
+  const mv=e.target.closest('[data-mv]'), del=e.target.closest('[data-del]'), arr=Store.org().sponsors;
+  if(mv){ const i=arr.findIndex(s=>s.id===mv.dataset.id), j=i+Number(mv.dataset.mv); [arr[i],arr[j]]=[arr[j],arr[i]]; Store.save(); render(); }
+  if(del){ if(confirmId!==del.dataset.id){ confirmId=del.dataset.id; render(); setTimeout(()=>{ if(confirmId===del.dataset.id){ confirmId=null; render(); } },4000); return; }
+    Store.org().sponsors=arr.filter(s=>s.id!==del.dataset.id); confirmId=null; Store.save(); render(); toast('Sponsor quitado'); }
+});
+render();
+</script>
+
+</body>
+</html>
