@@ -131,7 +131,7 @@ function sceneH2H({m,org}: Ctx){
   return `${bgLayers(org.brand)}${duo(m,0,60)}${duo(m,1,1340)}
   <div class="center-col">
     <div style="width:240px;height:90px"><img class="logo-img" style="margin:auto" src="${esc(org.brand.logo)}" alt=""></div>
-    <div class="ttl">${esc(m.round)}</div><div class="huge">Cara a cara</div>
+    <div class="ttl">${esc(m.round)}</div><div class="huge">VS</div>
     <div class="scorebox tnum"><span class="${H.a<H.b?'lose':''}">${H.a}</span><span style="font-size:70px;color:#666">-</span><span class="${H.b<H.a?'lose':''}">${H.b}</span></div>
     ${H.meet.length?'<div class="ttl" style="font-size:24px">Últimos enfrentamientos</div>':''}${meet}
   </div>`;
@@ -200,7 +200,35 @@ function sceneNext({org,next}: Ctx){
   <div class="abs" style="left:0;right:0;top:900px;text-align:center;font-size:30px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent2)">${esc(src.cat)}</div>`;
 }
 
-const SCENE_RENDER: Record<SceneKey,(c: Ctx)=>string>={score:sceneScore,warmup:sceneWarmup,break:sceneBreak,h2h:sceneH2H,summary:sceneSummary,bio:sceneBio,next:sceneNext};
+/* ---------- SORTEO (moneda paleta / pelota) ---------- */
+export const TOSS_SPIN_MS = 3200;
+const PALETA_SVG = `<svg viewBox="0 0 200 200" aria-hidden="true"><g transform="rotate(-35 100 100)">
+  <rect x="91" y="118" width="18" height="62" rx="7" fill="#3a2a10"/><rect x="88" y="168" width="24" height="16" rx="5" fill="#2a1d08"/>
+  <path d="M100 16c-38 0-58 26-58 56 0 30 22 54 58 54s58-24 58-54c0-30-20-56-58-56z" fill="#3a2a10"/>
+  <path d="M100 28c-30 0-46 20-46 44 0 24 18 42 46 42s46-18 46-42c0-24-16-44-46-44z" fill="none" stroke="#5a4520" stroke-width="3"/>
+  ${[[82,52],[100,46],[118,52],[76,70],[94,66],[112,66],[128,70],[82,88],[100,86],[118,88],[94,104],[110,104]].map(([x,y])=>`<circle cx="${x}" cy="${y}" r="5" fill="#d9b56a"/>`).join('')}
+</g></svg>`;
+const PELOTA_SVG = `<svg viewBox="0 0 200 200" aria-hidden="true"><circle cx="100" cy="100" r="62" fill="#3a2a10"/>
+  <path d="M52 62c26 14 30 62 0 78M148 62c-26 14-30 62 0 78" fill="none" stroke="#d9b56a" stroke-width="8" stroke-linecap="round"/></svg>`;
+function sceneToss({m,org}: Ctx){
+  const t = m.display.toss || null;
+  const face = (k: 'paleta'|'pelota', svg: string) => `<div class="coin-face ${k}">${svg}<span>${k==='paleta'?'PALETA':'PELOTA'}</span></div>`;
+  const coin = t
+    ? `<div class="coin spin-${t.result}" data-toss-at="${t.at}" data-toss-delay="0">${face('paleta',PALETA_SVG)}${face('pelota',PELOTA_SVG)}</div>`
+    : `<div class="coin idle">${face('paleta',PALETA_SVG)}${face('pelota',PELOTA_SVG)}</div>`;
+  const result = t
+    ? `<div class="toss-result" data-toss-at="${t.at}" data-toss-delay="${TOSS_SPIN_MS}">Salió <b>${t.result==='paleta'?'PALETA':'PELOTA'}</b></div>`
+    : `<div class="toss-result waiting">Esperando el sorteo…</div>`;
+  return `${bgLayers(org.brand)}${logoBox(org,'left:80px;top:46px;width:300px;height:110px')}
+  <div class="abs" style="left:0;right:0;top:60px;text-align:center">
+    <div class="ttl" style="justify-content:center">${esc(m.round)} · ${esc(m.court)}</div>
+    <div class="huge" style="margin-top:10px">Sorteo</div></div>
+  <div class="coin-wrap">${coin}</div>
+  ${result}
+  <div class="abs toss-teams"><span>${up(teamName(m,0))}</span><i>VS</i><span>${up(teamName(m,1))}</span></div>`;
+}
+
+const SCENE_RENDER: Record<SceneKey,(c: Ctx)=>string>={score:sceneScore,warmup:sceneWarmup,break:sceneBreak,h2h:sceneH2H,summary:sceneSummary,bio:sceneBio,next:sceneNext,toss:sceneToss};
 
 export function renderScene(ctx: Ctx): string {
   return (SCENE_RENDER[ctx.m.display.scene] || sceneScore)(ctx);

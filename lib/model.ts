@@ -3,7 +3,8 @@ import type { MatchRules, MatchState } from './scoring/engine';
 
 export interface Player { first: string; last: string; country: string; rank: string | number; age: string | number; side: string; hand: string; points: number; photo: string | null }
 export interface Team { players: [Player, Player] }
-export interface Display { scene: SceneKey; timerEndsAt: number | null; timerSec: number | null; bioTeam: number; since: number }
+export type TossFace = 'paleta' | 'pelota';
+export interface Display { scene: SceneKey; timerEndsAt: number | null; timerSec: number | null; bioTeam: number; since: number; toss?: { result: TossFace; at: number } | null }
 export interface H2H { a: number; b: number; meet: { ev: string; sa: number[]; sb: number[]; w: number }[] }
 export type MatchStatus = 'scheduled' | 'live' | 'finished';
 
@@ -26,15 +27,16 @@ export const FONT_PRESETS: Record<FontKey, { label: string; display: string; ita
   tecnica: { label: 'Técnica (Rajdhani)', display: "'Rajdhani','Arial Narrow',Arial,sans-serif", italic: false },
 };
 
-export type SceneKey = 'score' | 'warmup' | 'break' | 'h2h' | 'summary' | 'bio' | 'next';
+export type SceneKey = 'score' | 'warmup' | 'break' | 'h2h' | 'summary' | 'bio' | 'next' | 'toss';
 export const SCENES: Record<SceneKey, { label: string; hint: string; timer?: boolean; defaultSec?: number }> = {
   score: { label: 'Marcador', hint: 'Pantalla principal' },
   warmup: { label: 'Calentamiento', hint: 'Reloj + publicidad', timer: true, defaultSec: 300 },
   break: { label: 'Pausa / cambio de lado', hint: 'Sponsor + marcador', timer: true, defaultSec: 90 },
-  h2h: { label: 'Cara a cara', hint: 'Antes del partido' },
+  h2h: { label: 'VS', hint: 'Cara a cara, antes del partido' },
   summary: { label: 'Resumen del set', hint: 'Al terminar un set' },
   bio: { label: 'Ficha de jugadores', hint: 'Presentación de pareja' },
   next: { label: 'Próximo partido', hint: 'Entre partidos' },
+  toss: { label: 'Sorteo', hint: 'Moneda: paleta o pelota' },
 };
 
 /* ---------- utilidades ---------- */

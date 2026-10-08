@@ -19,6 +19,10 @@ export default function Stage({ m, org, next = null, fitHeight = false, classNam
     el.querySelectorAll('[data-clock="now"]').forEach(e => { e.textContent = new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' }); });
     const left = timerLeft(m.display);
     el.querySelectorAll('[data-timer]').forEach(e => { e.textContent = left ? fmtTimer(left) : (m.display.scene === 'warmup' ? '¡A JUGAR!' : '00:00'); });
+    el.querySelectorAll<HTMLElement>('[data-toss-at]:not([data-synced])').forEach(e => {
+      const elapsed = Date.now() - Number(e.dataset.tossAt), delay = Number(e.dataset.tossDelay || 0);
+      e.style.animationDelay = `${(delay - elapsed) / 1000}s`; e.dataset.synced = '1';
+    });
   };
   const render = () => {
     const el = stage.current, { m, org, next, emptyText } = props.current; if (!el) return;
