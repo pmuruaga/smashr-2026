@@ -49,9 +49,7 @@ export default function AuthCard({ mode }: { mode: 'login' | 'registro' }) {
         <button className="btn primary" type="submit" disabled={busy}>{busy ? 'Un momento…' : mode === 'login' ? 'Ingresar' : 'Crear cuenta'}</button>
         {mode === 'login' && <button className="btn" type="button" onClick={magic} disabled={busy}>Enviarme un link de ingreso</button>}
         {msg && <p className="hint" style={{ color: msg.ok ? 'var(--ok)' : 'var(--live)' }} role="status">{msg.t}</p>}
-        <p className="hint" style={{ textAlign: 'center' }}>
-          {mode === 'login' ? <>¿No tenés cuenta? <a href="/registro">Registrate</a></> : <>¿Ya tenés cuenta? <a href="/login">Ingresá</a></>}
-        </p>
+        {mode === 'registro' && <p className="hint" style={{ textAlign: 'center' }}>¿Ya tenés cuenta? <a href="/login">Ingresá</a></p>}
       </form>
     </main>
   );

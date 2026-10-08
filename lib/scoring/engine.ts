@@ -37,7 +37,9 @@ export interface MatchState {
   setsWon: [number, number];
   pts: [number, number];
   deuces: number;
-  server: number;
+  server: number;            // pareja que saca (0/1)
+  srvPlayer?: [number, number]; // jugador (0/1) de cada pareja que saca la próxima vez que le toque a esa pareja
+  srvChosen?: boolean;       // el operador ya eligió quién arranca sacando
   finished: boolean;
   winner: number | null;
   timeline: [string, string][];
@@ -67,6 +69,30 @@ export const presetRules = (k: string): MatchRules => {
 export const clone = <T,>(o: T): T => JSON.parse(JSON.stringify(o));
 export const cur = (m: MatchState): SetState => m.sets[m.sets.length - 1];
 
+/* El saque pasa a la otra pareja; en la pareja que terminó de sacar, la próxima vez saca el compañero.
+   Así se cumple el orden 1-A, 1-B, 2-A, 2-B que eligió el operador. */
+function passServe(m: MatchState) {
+  const sp: [number, number] = m.srvPlayer ? [...m.srvPlayer] as [number, number] : [0, 0];
+  sp[m.server] = 1 - sp[m.server];
+  m.srvPlayer = sp;
+  m.server = 1 - m.server;
+}
+/** Quién saca ahora: pareja y jugador. */
+export function currentServer(m: MatchState): { team: number; player: number } {
+  return { team: m.server, player: (m.srvPlayer || [0, 0])[m.server] };
+}
+/** Elección del operador tocando la pelotita de un jugador.
+    - Primera elección antes de empezar: ese jugador arranca sacando (cambia la pareja que saca).
+    - Jugador de la pareja que está sacando: pasa a sacar él.
+    - Jugador de la otra pareja: será el próximo en sacar de su pareja. */
+export function chooseServer(m: MatchState, team: number, player: number) {
+  const sp: [number, number] = m.srvPlayer ? [...m.srvPlayer] as [number, number] : [0, 0];
+  if (!m.srvChosen && !m.startedAt) m.server = team;
+  sp[team] = player;
+  m.srvPlayer = sp;
+  m.srvChosen = true;
+}
+
 export function newSet(m: MatchState): SetState {
   const c = m.cfg, dec = m.setsWon[0] === c.setsToWin - 1 && m.setsWon[1] === c.setsToWin - 1;
   const sup = c.decider === 'supertb' && dec;
@@ -75,7 +101,7 @@ export function newSet(m: MatchState): SetState {
 }
 export function newMatch(cfg: MatchRules): MatchState {
   const c = clone(cfg); delete c.label;
-  const m: MatchState = { cfg: c, sets: [], setsWon: [0, 0], pts: [0, 0], deuces: 0, server: 0, finished: false, winner: null,
+  const m: MatchState = { cfg: c, sets: [], setsWon: [0, 0], pts: [0, 0], deuces: 0, server: 0, srvPlayer: [0, 0], finished: false, winner: null,
     timeline: [], startedAt: null, endedAt: null, run: { team: null, n: 0 }, _bp: null };
   m.sets.push(newSet(m)); return m;
 }
@@ -103,7 +129,7 @@ export function addPoint(m: MatchState, t: number, sim = false, now = Date.now()
     const p = s.tb.p; p[t]++;
     if (!sim) m.timeline.push([String(p[0]), String(p[1])]);
     if (p[t] >= s.tb.target && (c.tbWinBy2 === false || p[t] - p[o] >= 2)) { if (!s.tb.super) s.g[t]++; return winSet(m, t, now); }
-    if ((p[0] + p[1]) % 2 === 1) m.server = 1 - m.server;
+    if ((p[0] + p[1]) % 2 === 1) passServe(m);
     return 'point';
   }
   const p = m.pts;
@@ -120,7 +146,7 @@ export function addPoint(m: MatchState, t: number, sim = false, now = Date.now()
 }
 function winGame(m: MatchState, t: number, now: number): PointResult {
   const c = m.cfg, s = cur(m), o = 1 - t;
-  s.g[t]++; m.pts = [0, 0]; m.deuces = 0; m.timeline = []; m.server = 1 - m.server;
+  s.g[t]++; m.pts = [0, 0]; m.deuces = 0; m.timeline = []; passServe(m);
   if (s.g[t] >= c.gamesPerSet && s.g[t] - s.g[o] >= 2) return winSet(m, t, now);
   if (c.tiebreak && s.g[0] === c.tiebreakAt && s.g[1] === c.tiebreakAt) s.tb = { p: [0, 0], target: c.tbPoints, super: false, first: m.server };
   return 'game';

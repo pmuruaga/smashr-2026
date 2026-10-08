@@ -15,6 +15,8 @@ Marcador de pádel en tiempo real, multitenant. **Mesa de Control** (organizador
 | `/panel/sponsors`, `/panel/personalizacion` | Sponsors y look de los tableros |
 | `/{org}/{evento}/{cancha}/tablero` | Tablero de una cancha (muestra el partido en juego y pasa solo al siguiente) |
 | `/t/[id]` | Tablero de un partido puntual |
+| `/{org}/hoy` | Resumen público del día: partidos en juego, terminados hoy y próximos |
+| `/panel/usuarios` | Solo superusuarios: usuarios registrados, activar/desactivar, link de registro |
 
 ## Estructura
 - `lib/scoring/engine.ts` — motor de reglas (puro, con tests en `engine.test.ts`).

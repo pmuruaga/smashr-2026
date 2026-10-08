@@ -57,7 +57,11 @@ export default function PartidosPage() {
     <main className="page">
       <div className="page-head">
         <div><h1>Partidos</h1><p>{org.name} · cada partido tiene su propio tablero y se puede controlar desde cualquier dispositivo.</p></div>
-        <Link className="btn primary" href="/panel/nuevo">+ Nuevo partido</Link>
+        <div className="row">
+          <a className="btn" href={`/${org.slug}/hoy`} target="_blank" rel="noopener">Resumen del día ↗</a>
+          <button className="btn" type="button" onClick={() => copy(site() + `/${org.slug}/hoy`, toast)}>Copiar link del resumen</button>
+          <Link className="btn primary" href="/panel/nuevo">+ Nuevo partido</Link>
+        </div>
       </div>
       {list === null ? <p className="hint">Cargando partidos…</p> : <>
         {sec('En juego', list.filter(m => m.status === 'live'), 'No hay partidos en juego.')}

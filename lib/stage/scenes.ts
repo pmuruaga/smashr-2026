@@ -49,7 +49,7 @@ function sceneScore({m,org,rot}: Ctx){
     const pl=m.teams[k].players;
     rows+=`<div class="sb-cell sb-team ${st.winner===k?'win':''}"><div class="left">
       ${photos?`<div class="pics">${pl.map(p=>`<div class="pic">${photo(p)}</div>`).join('')}</div>`:''}
-      <div class="names"><div class="first">${esc(pl[0].first)} · ${esc(pl[1].first)}</div>
+      <div class="names"><div class="first">${pl.map((p,j)=>{ const sv=!st.finished && !!st.startedAt && st.server===k && (st.srvPlayer||[0,0])[k]===j; return sv?`<span class="srv-name">${esc(p.first)}</span>`:esc(p.first); }).join(' · ')}</div>
       <div class="last" style="${photos?'font-size:50px':''}">${up(pl[0].last)} / ${up(pl[1].last)}</div></div></div>
       ${!st.finished && st.startedAt && st.server===k?'<div class="ball" title="Saca"></div>':''}</div>`;
     for(let i=0;i<n;i++){
