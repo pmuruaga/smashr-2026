@@ -120,12 +120,22 @@ export async function actChooseServer(m: Match, team: number, player: number): P
   await persist(next, { state: next.state });
   return next;
 }
+/** Sorteo: elige al azar paleta o pelota y lo muestra en el tablero (la moneda gira en todas las pantallas a la vez). */
+export async function actToss(m: Match): Promise<Match> {
+  const r = new Uint8Array(1); crypto.getRandomValues(r);
+  const next = clone(m);
+  next.display = { ...next.display, scene: 'toss', since: Date.now(), timerEndsAt: null, timerSec: null,
+    toss: { result: r[0] % 2 === 0 ? 'paleta' : 'pelota', at: Date.now() } };
+  await persist(next, { display: next.display });
+  return next;
+}
 export async function actScene(m: Match, scene: SceneKey, opts: { sec?: number; bioTeam?: number } = {}): Promise<Match> {
   const sc = SCENES[scene], next = clone(m);
   const sec = opts.sec || sc.defaultSec || 0;
   next.display = { ...next.display, scene, since: Date.now(),
     timerSec: sc.timer ? sec : null, timerEndsAt: sc.timer ? Date.now() + sec * 1000 : null,
-    bioTeam: opts.bioTeam ?? next.display.bioTeam };
+    bioTeam: opts.bioTeam ?? next.display.bioTeam,
+    toss: scene === 'toss' ? null : next.display.toss ?? null };
   if (next.status === 'scheduled' && scene === 'warmup') next.status = 'live';
   await persist(next, { display: next.display, status: next.status });
   return next;

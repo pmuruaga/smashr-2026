@@ -4,7 +4,7 @@ import { use, useCallback, useEffect, useRef, useState } from 'react';
 import { useOrg } from '@/components/OrgProvider';
 import Stage from '@/components/Stage';
 import { StatusPill, site, boardPath, matchBoardPath, copy } from '@/components/ui';
-import { actAddTime, actChooseServer, actPoint, actScene, actToggleServe, actUndo, fetchMatch, fetchOrgMatches, findNext, watchMatch } from '@/lib/data';
+import { actAddTime, actChooseServer, actPoint, actToss, actScene, actToggleServe, actUndo, fetchMatch, fetchOrgMatches, findNext, watchMatch } from '@/lib/data';
 import { pointLabels, statusBadges, describeCfg, currentServer } from '@/lib/scoring/engine';
 import { timerLeft, fmtTimer } from '@/lib/stage/scenes';
 import { SCENES, teamName, type Match, type SceneKey } from '@/lib/model';
@@ -88,7 +88,7 @@ export default function Puntuacion({ params }: { params: Promise<{ id: string }>
     const go = () => scene(key, { sec: key === 'warmup' ? warm * 60 : key === 'break' ? brk : undefined, bioTeam });
     return (
       <div className={`scene ${on ? 'on' : ''}`} role="button" tabIndex={0} key={key + (bioTeam ?? '')}
-        onClick={e => { if ((e.target as HTMLElement).tagName !== 'SELECT') go(); }}
+        onClick={e => { const tag = (e.target as HTMLElement).tagName; if (tag !== 'SELECT' && tag !== 'BUTTON') go(); }}
         onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } }}>
         <b>{label}</b><small>{hint}</small>{extra}
       </div>
@@ -129,11 +129,13 @@ export default function Puntuacion({ params }: { params: Promise<{ id: string }>
                 <select aria-label="Duración del calentamiento" value={warm} onChange={e => setWarm(Number(e.target.value))}>{WARM.map(o => <option key={o} value={o}>{o} min</option>)}</select>)}
               {sceneBtn('break', 'Pausa / cambio de lado', 'Sponsor + marcador',
                 <select aria-label="Duración de la pausa" value={brk} onChange={e => setBrk(Number(e.target.value))}>{BRK.map(o => <option key={o} value={o}>{o} s</option>)}</select>)}
-              {sceneBtn('h2h', 'Cara a cara', 'Antes de que entren')}
+              {sceneBtn('h2h', 'VS', 'Cara a cara, antes de que entren')}
               {sceneBtn('summary', 'Resumen del set', 'Al cerrar un set')}
               {sceneBtn('bio', 'Ficha pareja A', teamName(m, 0), undefined, 0)}
               {sceneBtn('bio', 'Ficha pareja B', teamName(m, 1), undefined, 1)}
               {sceneBtn('next', 'Próximo partido', 'Entre partidos')}
+              {sceneBtn('toss', 'Sorteo', d.toss ? `Salió ${d.toss.result === 'paleta' ? 'PALETA' : 'PELOTA'}` : 'Moneda: paleta o pelota',
+                <button className="btn sm primary" type="button" onClick={e => { e.stopPropagation(); run(actToss); }}>Sortear</button>)}
             </div>
           </section>
         </div>
