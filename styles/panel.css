@@ -89,3 +89,50 @@ input[type=range]{flex:1;accent-color:var(--accent)}
 .tv-root .tv{position:absolute;inset:0;overflow:hidden;background:#000}
 .tv-root .stage{position:absolute}
 .hintfs{position:fixed;right:16px;bottom:calc(14px + env(safe-area-inset-bottom,0px));font:600 12px var(--body);color:rgba(255,255,255,.6);background:rgba(0,0,0,.5);padding:6px 10px;border-radius:6px;pointer-events:none}
+
+/* ---- orden de saque ---- */
+.teamBtn.off{opacity:.55;cursor:default}
+.teamBtn .pname{display:flex;align-items:center;gap:8px;min-width:0}
+.srvball{flex:none;width:26px;height:26px;border-radius:50%;border:2px dashed rgba(255,255,255,.55);background:transparent;cursor:pointer;padding:0}
+.srvball:hover{border-style:solid;border-color:#fff}
+.srvball.next{border:3px solid #e6f24a}
+.srvball.now{border:0;background:radial-gradient(circle at 35% 30%,#f4ff9a,#d9e83a 55%,#a7b81f);box-shadow:0 0 0 2px rgba(0,0,0,.25),0 0 10px rgba(230,242,74,.6)}
+.srvball:focus-visible{outline:2px solid #fff;outline-offset:2px}
+
+/* ---- usuarios ---- */
+.utable-wrap{overflow-x:auto}
+.utable{width:100%;border-collapse:collapse;font-size:14px}
+.utable th{text-align:left;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding:8px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
+.utable td{padding:10px;border-bottom:1px solid var(--line);vertical-align:middle;white-space:nowrap}
+.utable tr.off td{opacity:.6}
+
+/* ---- resumen público del día (look de transmisión, siempre oscuro) ---- */
+.day{min-height:100vh;background:radial-gradient(1200px 500px at 50% -10%,color-mix(in oklab,var(--accent,#c9a15c) 18%,transparent),transparent 60%),#0b0b0d;color:#f1eee7;padding-inline:16px;padding-block:20px 40px;font-family:var(--body);color-scheme:dark}
+.day-head{max-width:1200px;margin:0 auto 18px;display:flex;align-items:center;gap:16px}
+.day-head img{height:56px;max-width:180px;object-fit:contain}
+.day-head h1{font-family:var(--display);font-style:var(--ital);font-weight:800;font-size:34px;text-transform:uppercase;letter-spacing:.02em;margin:0}
+.day-head p{margin:2px 0 0;color:#a39e94;text-transform:capitalize}
+.day-sec{max-width:1200px;margin:0 auto 22px}
+.day-sec h2{font-family:var(--display);font-weight:700;font-size:16px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent,#c9a15c);margin:0 0 10px}
+.day-sec h2 span{color:#7d7970;margin-left:6px}
+.day-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
+.day-card{display:grid;gap:8px;text-decoration:none;color:inherit;background:linear-gradient(180deg,#18181d,#0e0e11);border:1px solid #2c2c33;border-radius:8px;padding:12px 14px}
+.day-card:hover{border-color:var(--accent,#c9a15c)}
+.day-card.live{border-color:color-mix(in oklab,var(--accent,#c9a15c) 55%,#2c2c33)}
+.day-top{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.day-court{font-family:var(--display);font-weight:700;font-size:20px;letter-spacing:.03em;text-transform:uppercase}
+.day-live,.day-done,.day-sched{font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;padding:2px 8px;border-radius:4px}
+.day-live{background:#e24b3b;color:#fff}
+.day-done{background:var(--accent,#c9a15c);color:#111}
+.day-sched{border:1px solid #3a3a42;color:#a39e94}
+.day-score{display:grid;gap:4px 6px;align-items:center}
+.day-tn{font-family:var(--display);font-style:var(--ital);font-weight:700;font-size:20px;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.day-tn.win{color:var(--accent,#c9a15c)}
+.day-ball{display:inline-block;width:10px;height:10px;border-radius:50%;background:#d9e83a;margin-right:7px;vertical-align:2px;box-shadow:0 0 8px rgba(230,242,74,.6)}
+.day-set{font-family:var(--display);font-weight:700;font-size:22px;text-align:center;background:#1f1f25;border-radius:3px;line-height:1.35}
+.day-set.lose{color:#77746c}
+.day-set.cur{background:#2c2c34}
+.day-pt{font-family:var(--display);font-style:var(--ital);font-weight:800;font-size:22px;text-align:center;background:var(--accent,#c9a15c);color:#111;border-radius:3px;line-height:1.35}
+.day-meta{font-size:12.5px;color:#8f8a80;text-transform:uppercase;letter-spacing:.06em}
+.day-empty,.day-foot{max-width:1200px;margin:24px auto 0;color:#8f8a80;text-align:center}
+.day .tnum{font-variant-numeric:tabular-nums}

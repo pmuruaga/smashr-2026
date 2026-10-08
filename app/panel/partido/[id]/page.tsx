@@ -4,8 +4,8 @@ import { use, useCallback, useEffect, useRef, useState } from 'react';
 import { useOrg } from '@/components/OrgProvider';
 import Stage from '@/components/Stage';
 import { StatusPill, site, boardPath, matchBoardPath, copy } from '@/components/ui';
-import { actAddTime, actPoint, actScene, actToggleServe, actUndo, fetchMatch, fetchOrgMatches, findNext, watchMatch } from '@/lib/data';
-import { pointLabels, statusBadges, describeCfg } from '@/lib/scoring/engine';
+import { actAddTime, actChooseServer, actPoint, actScene, actToggleServe, actUndo, fetchMatch, fetchOrgMatches, findNext, watchMatch } from '@/lib/data';
+import { pointLabels, statusBadges, describeCfg, currentServer } from '@/lib/scoring/engine';
 import { timerLeft, fmtTimer } from '@/lib/stage/scenes';
 import { SCENES, teamName, type Match, type SceneKey } from '@/lib/model';
 import { toast, errMsg } from '@/lib/toast';
@@ -61,14 +61,27 @@ export default function Puntuacion({ params }: { params: Promise<{ id: string }>
   if (m === null) return <main className="page"><p className="hint">No encontramos ese partido en tu organización. Volvé a <Link href="/panel">Partidos</Link>.</p></main>;
 
   const st = m.state, lab = pointLabels(st), d = m.display, left = timerLeft(d);
+  const srv = currentServer(st), sp = st.srvPlayer || [0, 0];
   const teamBtn = (k: number) => (
-    <button className={`teamBtn ${k ? 'b' : ''}`} type="button" disabled={st.finished} onClick={() => point(k)} aria-label={`Punto para ${teamName(m, k)}`}>
-      <div className="names">{m.teams[k].players.map((p, j) => (
-        <span key={j}>{j === 0 && !st.finished && st.server === k && <i className="serve" title="Saca" />}<small className="fn">{p.first} </small>{p.last}</span>
-      ))}</div>
+    <div className={`teamBtn ${k ? 'b' : ''} ${st.finished ? 'off' : ''}`} role="button" tabIndex={0} aria-label={`Punto para ${teamName(m, k)}`}
+      onClick={() => { if (!st.finished) point(k); }}
+      onKeyDown={e => { if ((e.key === 'Enter' || e.key === ' ') && e.target === e.currentTarget) { e.preventDefault(); if (!st.finished) point(k); } }}>
+      <div className="names">{m.teams[k].players.map((p, j) => {
+        const now = !st.finished && srv.team === k && srv.player === j;
+        const nextOther = !st.finished && srv.team !== k && sp[k] === j;
+        return (
+          <span key={j} className="pname">
+            <button type="button" className={`srvball ${now ? 'now' : nextOther ? 'next' : ''}`}
+              title={now ? 'Está sacando' : nextOther ? 'Próximo en sacar de su pareja' : 'Elegir para el saque'}
+              aria-label={`Saque: ${p.first} ${p.last}`} aria-pressed={now}
+              onClick={e => { e.stopPropagation(); if (!st.finished) run(c => actChooseServer(c, k, j)); }} />
+            <small className="fn">{p.first} </small>{p.last}
+          </span>
+        );
+      })}</div>
       <div className="sets">{st.sets.map((s, i) => <b key={i} className="tnum">{s.tb && s.tb.super ? s.tb.p[k] : s.g[k]}</b>)}</div>
       <div className="pts tnum">{st.finished ? (st.winner === k ? '🏆' : '–') : lab[k]}</div>
-    </button>
+    </div>
   );
   const sceneBtn = (key: SceneKey, label: string, hint: string, extra?: React.ReactNode, bioTeam?: number) => {
     const on = d.scene === key && (key !== 'bio' || d.bioTeam === bioTeam);
@@ -101,7 +114,7 @@ export default function Puntuacion({ params }: { params: Promise<{ id: string }>
               <button className="btn" type="button" onClick={() => run(actToggleServe)}>Cambiar saque</button>
               <span className="hint">{describeCfg(st.cfg)}</span>
             </div>
-            <p className="hint">Tocá la pareja que gana el punto. Atajos en compu: <b>1</b> / <b>2</b> y <b>Z</b> para deshacer. Al anotar, el tablero vuelve solo al marcador.</p>
+            <p className="hint">Tocá la pareja que gana el punto. <b>Saque:</b> antes de empezar tocá la pelotita del que saca primero y después la del primero de la otra pareja; el resto del orden sigue solo. Pelotita llena = saca ahora, con borde = próximo de su pareja. Atajos en compu: <b>1</b> / <b>2</b> y <b>Z</b> para deshacer.</p>
           </section>
           <section className="card">
             <h2>Qué muestra el tablero</h2>

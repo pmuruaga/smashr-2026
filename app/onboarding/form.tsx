@@ -18,7 +18,7 @@ export default function OnboardingForm({ email }: { email: string }) {
     e.preventDefault(); setBusy(true); setErr('');
     const { error } = await supabaseBrowser().rpc('create_organization', { p_name: name, p_slug: s });
     setBusy(false);
-    if (error) { setErr(error.code === '23505' ? 'Esa dirección ya está en uso, probá con otra.' : errMsg(error)); return; }
+    if (error) { setErr(error.code === '23505' ? 'Esa dirección ya está en uso, probá con otra.' : error.code === '23514' ? 'Esa dirección está reservada o no es válida, probá con otra.' : errMsg(error)); return; }
     router.replace('/panel'); router.refresh();
   }
   return (

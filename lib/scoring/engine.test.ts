@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { newMatch, addPoint, presetRules, pointLabels, statusBadges, describeCfg, type MatchState } from './engine';
+import { newMatch, addPoint, presetRules, pointLabels, statusBadges, describeCfg, chooseServer, currentServer, type MatchState } from './engine';
 
 const game = (m: MatchState, t: number) => { for (let i = 0; i < 4; i++) addPoint(m, t); };
 const pts = (m: MatchState, seq: string) => { for (const c of seq) addPoint(m, Number(c)); };
@@ -78,5 +78,35 @@ describe('motor de reglas', () => {
 
   it('describe el formato', () => {
     expect(describeCfg(presetRules('pro'))).toBe('Mejor de 3 · Sets a 6 · TB a 7 en 6-6 · Star point');
+  });
+
+  it('orden de saque por jugador: elegidos 3 y 1, después siguen 4 y 2', () => {
+    const m = newMatch(presetRules('oro'));
+    // jugador 3 = pareja B (1), primer jugador (0); jugador 1 = pareja A (0), primer jugador (0)
+    chooseServer(m, 1, 0);
+    chooseServer(m, 0, 0);
+    const order: string[] = [];
+    const who = () => { const s = currentServer(m); return String(s.team * 2 + s.player + 1); };
+    for (let g = 0; g < 5; g++) { order.push(who()); game(m, 0); }
+    expect(order).toEqual(['3', '1', '4', '2', '3']);
+  });
+
+  it('el saque en el tie-break rota cada dos puntos respetando el orden', () => {
+    const m = newMatch(presetRules('ventaja'));
+    for (let i = 0; i < 6; i++) { game(m, 0); game(m, 1); }
+    const s0 = currentServer(m);
+    addPoint(m, 0);
+    const s1 = currentServer(m);
+    expect(s1.team).toBe(1 - s0.team);
+    addPoint(m, 0); addPoint(m, 0);
+    const s3 = currentServer(m);
+    expect(s3.team).toBe(s0.team);
+    expect(s3.player).toBe(1 - s0.player);
+  });
+
+  it('partidos viejos sin jugador de saque siguen funcionando', () => {
+    const m = newMatch(presetRules('oro')); delete m.srvPlayer;
+    game(m, 0);
+    expect(currentServer(m)).toEqual({ team: 1, player: 0 });
   });
 });

@@ -145,3 +145,5 @@
 .warm-bar{position:absolute;left:60px;right:60px;top:820px;height:210px;display:flex;align-items:center;gap:40px;padding:0 50px}
 .scene-tag{display:inline-flex;align-items:center;gap:14px;font-size:30px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--accent2)}
 .scene-tag::before{content:"";width:16px;height:16px;border-radius:50%;background:#e24b3b;box-shadow:0 0 16px #e24b3b}
+.sb-team .first .srv-name{color:#e6f24a}
+.sb-team .first .srv-name::before{content:"";display:inline-block;width:18px;height:18px;border-radius:50%;background:#d9e83a;margin-right:10px;vertical-align:1px;box-shadow:0 0 10px rgba(230,242,74,.6)}

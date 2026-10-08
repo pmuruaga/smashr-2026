@@ -6,7 +6,7 @@ import { useOrg } from './OrgProvider';
 
 const NAV = [['/panel', 'Partidos'], ['/panel/nuevo', 'Nuevo partido'], ['/panel/sponsors', 'Sponsors'], ['/panel/personalizacion', 'Personalización']];
 
-export default function AdminShell({ children }: { children: React.ReactNode }) {
+export default function AdminShell({ children, isAdmin = false }: { children: React.ReactNode; isAdmin?: boolean }) {
   const path = usePathname();
   const router = useRouter();
   const { org } = useOrg();
@@ -17,7 +17,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
         <div className="topbar-in">
           <Link className="brand" href="/panel">SMASH<span>R</span></Link>
           <nav className="nav" aria-label="Menú">
-            {NAV.map(([h, l]) => <Link key={h} href={h} aria-current={path === h ? 'page' : undefined}>{l}</Link>)}
+            {[...NAV, ...(isAdmin ? [['/panel/usuarios', 'Usuarios']] : [])].map(([h, l]) => <Link key={h} href={h} aria-current={path === h ? 'page' : undefined}>{l}</Link>)}
           </nav>
           <div className="who"><span>{org.name}</span><button className="btn sm" type="button" onClick={logout}>Salir</button></div>
         </div>

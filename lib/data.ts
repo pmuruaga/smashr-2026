@@ -2,7 +2,7 @@
 /* Acceso a datos desde el navegador (Mesa de Control y tableros).
    Las reglas de seguridad viven en la base (RLS): un operador solo puede escribir en su organización. */
 import { supabaseBrowser } from './supabase/client';
-import { addPoint, clone, newMatch, type MatchRules } from './scoring/engine';
+import { addPoint, chooseServer, clone, newMatch, type MatchRules } from './scoring/engine';
 import { rowToMatch, rowToOrg, rowToSponsor, slugify, SCENES, type Match, type Org, type SceneKey, type Team, type Sponsor, type Brand } from './model';
 
 const sb = () => supabaseBrowser();
@@ -112,6 +112,11 @@ export async function actUndo(m: Match): Promise<Match> {
 }
 export async function actToggleServe(m: Match): Promise<Match> {
   const next = clone(m); next.state.server = 1 - next.state.server;
+  await persist(next, { state: next.state });
+  return next;
+}
+export async function actChooseServer(m: Match, team: number, player: number): Promise<Match> {
+  const next = clone(m); chooseServer(next.state, team, player);
   await persist(next, { state: next.state });
   return next;
 }

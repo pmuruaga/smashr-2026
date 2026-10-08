@@ -15,5 +15,6 @@ export default async function PanelLayout({ children }: { children: React.ReactN
   if (!row) redirect('/onboarding');
   const { data: sp } = await sb.from('sponsors').select('*').eq('org_id', row.id as string).order('sort_order');
   const org = rowToOrg(row, sp || []);
-  return <OrgProvider initial={org}><AdminShell>{children}</AdminShell></OrgProvider>;
+  const { data: isAdmin } = await sb.rpc('is_app_admin');
+  return <OrgProvider initial={org}><AdminShell isAdmin={!!isAdmin}>{children}</AdminShell></OrgProvider>;
 }
