@@ -42,6 +42,7 @@ export default function PartidosPage() {
           {m.status !== 'finished' && <Link className="btn primary sm" href={`/panel/partido/${m.id}`}>Controlar</Link>}
           <a className="btn sm" href={matchBoardPath(m)} target="_blank" rel="noopener">Abrir tablero ↗</a>
           <button className="btn sm" type="button" onClick={() => copy(site() + boardPath(org.slug, m), toast)}>Copiar link de la cancha</button>
+          {m.status === 'scheduled' && <Link className="btn sm" href={`/panel/partido/${m.id}/editar`}>Editar</Link>}
           {m.status !== 'live' && <button className="btn sm danger" type="button" onClick={() => del(m)}>{confirmDel === m.id ? '¿Seguro? Tocá de nuevo' : 'Eliminar'}</button>}
         </div>
       </article>
