@@ -78,6 +78,22 @@ export async function createMatch(orgId: string, d: { event: string; court: stri
   if (error) throw error;
   return rowToMatch(data);
 }
+/** Edita un partido que todavía no empezó. Si cambia el formato, el marcador se rearma (sigue en 0) conservando quién saca.
+    Solo actualiza si sigue en estado 'scheduled' (si alguien lo empezó mientras tanto, no pisa nada). */
+export async function updateScheduledMatch(m: Match, d: { event: string; court: string; round: string; cat: string; scheduledAt: string; teams: [Team, Team]; presetKey: string; cfg: MatchRules }) {
+  const strip = (c: MatchRules) => { const x = clone(c); delete x.label; return JSON.stringify(x); };
+  const rulesChanged = strip(d.cfg) !== strip(m.cfg);
+  const state = rulesChanged
+    ? { ...newMatch(d.cfg), server: m.state.server, srvPlayer: m.state.srvPlayer, srvChosen: m.state.srvChosen }
+    : m.state;
+  const { data, error } = await sb().from('matches').update({
+    event: d.event, event_slug: slugify(d.event), court: d.court, court_slug: slugify(d.court),
+    round: d.round, category: d.cat, scheduled_at: d.scheduledAt, teams: d.teams, preset_key: d.presetKey,
+    rules: d.cfg, state,
+  }).eq('id', m.id).eq('status', 'scheduled').select('id');
+  if (error) throw error;
+  if (!data || !data.length) throw new Error('El partido ya empezó, no se puede editar.');
+}
 export async function deleteMatch(id: string) {
   const { error } = await sb().from('matches').delete().eq('id', id);
   if (error) throw error;
