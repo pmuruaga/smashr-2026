@@ -6,7 +6,9 @@
 -- 1) Jugadores ---------------------------------------------------------------
 create table public.players (
   id            uuid primary key default gen_random_uuid(),
-  owner_org_id  uuid not null references public.organizations(id) on delete cascade,
+  -- Si se borra la org dueña, el jugador NO se borra: queda sin dueño (null)
+  -- y lo siguen viendo las demás orgs con las que estaba compartido.
+  owner_org_id  uuid references public.organizations(id) on delete set null,
   first_name    text not null check (length(trim(first_name)) > 0),
   last_name     text not null check (length(trim(last_name)) > 0),
   dni           text check (dni ~ '^[0-9]{6,9}$'),            -- opcional, solo dígitos
@@ -29,6 +31,7 @@ create trigger players_touch before update on public.players
   for each row execute function public.touch_updated_at();
 
 -- 2) Qué organizaciones ven cada jugador --------------------------------------
+-- Si se borra una org, solo se borran SUS vínculos; el jugador sigue existiendo.
 create table public.org_players (
   org_id     uuid not null references public.organizations(id) on delete cascade,
   player_id  uuid not null references public.players(id) on delete cascade,
