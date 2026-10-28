@@ -12,6 +12,7 @@ Marcador de pádel en tiempo real, multitenant. **Mesa de Control** (organizador
 | `/panel` | Partidos en juego / programados / finalizados |
 | `/panel/nuevo` | Nuevo partido: datos, parejas, formato |
 | `/panel/partido/[id]` | Puntuación + escenas del tablero + vista previa |
+| `/panel/jugadores` | Base de jugadores de la organización: listado, búsqueda, alta/edición/baja |
 | `/panel/sponsors`, `/panel/personalizacion` | Sponsors y look de los tableros |
 | `/{org}/{evento}/{cancha}/tablero` | Tablero de una cancha (muestra el partido en juego y pasa solo al siguiente) |
 | `/t/[id]` | Tablero de un partido puntual |

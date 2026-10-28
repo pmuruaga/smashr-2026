@@ -4,7 +4,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { supabaseBrowser } from '@/lib/supabase/client';
 import { useOrg } from './OrgProvider';
 
-const NAV = [['/panel', 'Partidos'], ['/panel/nuevo', 'Nuevo partido'], ['/panel/sponsors', 'Sponsors'], ['/panel/personalizacion', 'Personalización']];
+const NAV = [['/panel', 'Partidos'], ['/panel/nuevo', 'Nuevo partido'], ['/panel/jugadores', 'Jugadores'], ['/panel/sponsors', 'Sponsors'], ['/panel/personalizacion', 'Personalización']];
 
 export default function AdminShell({ children, isAdmin = false }: { children: React.ReactNode; isAdmin?: boolean }) {
   const path = usePathname();
