@@ -4,7 +4,8 @@ import { use, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useOrg } from '@/components/OrgProvider';
 import { fetchMatch, fetchOrgMatches, updateScheduledMatch } from '@/lib/data';
-import MatchPlayers, { emptySlots, slotFromMatch, slotReady, slotToPlayer, usePlayerBase, type Slots } from '@/components/MatchPlayers';
+import MatchPlayers, { emptySlots, slotFromMatch, slotReady, slotToPlayer, type Slots } from '@/components/MatchPlayers';
+import { fetchOrgPlayersByIds } from '@/lib/players';
 import { PRESETS, presetRules, describeCfg, type MatchRules } from '@/lib/scoring/engine';
 import { slugify, type Match, type Team } from '@/lib/model';
 import { toast, errMsg } from '@/lib/toast';
@@ -25,7 +26,6 @@ export default function EditarPartido({ params }: { params: Promise<{ id: string
   const [time, setTime] = useState('');
   const [slots, setSlots] = useState<Slots>(emptySlots);
   const [slotsReady, setSlotsReady] = useState(false);
-  const base = usePlayerBase(org.id);
   const [preset, setPreset] = useState('oro');
   const [cfg, setCfg] = useState<MatchRules>(presetRules('oro'));
   const [busy, setBusy] = useState(false);
@@ -42,12 +42,15 @@ export default function EditarPartido({ params }: { params: Promise<{ id: string
     }).catch(() => setOrig(null));
   }, [org.id, id]);
 
-  // armar los 4 lugares cuando están el partido y la base de jugadores
+  // armar los 4 lugares: trae de la base solo los jugadores vinculados a este partido
   useEffect(() => {
-    if (slotsReady || !orig || !base.list) return;
-    setSlots(orig.teams.map(t => t.players.map(p => slotFromMatch(p, base.list as NonNullable<typeof base.list>))));
-    setSlotsReady(true);
-  }, [orig, base.list, slotsReady]);
+    if (slotsReady || !orig) return;
+    const ids = orig.teams.flatMap(t => t.players.map(p => p.playerId)).filter(Boolean) as string[];
+    fetchOrgPlayersByIds(org.id, ids).catch(() => []).then(list => {
+      setSlots(orig.teams.map(t => t.players.map(p => slotFromMatch(p, list))));
+      setSlotsReady(true);
+    });
+  }, [orig, org.id, slotsReady]);
   const setRule = <K extends keyof MatchRules>(key: K, v: MatchRules[K]) => {
     setCfg(c => { const n = { ...c, [key]: v }; if (n.tiebreakAt > n.gamesPerSet) n.tiebreakAt = n.gamesPerSet; return n; });
     setPreset('custom');
@@ -89,7 +92,7 @@ export default function EditarPartido({ params }: { params: Promise<{ id: string
         <p className="hint">Tablero de esta cancha: <span className="copy">{(process.env.NEXT_PUBLIC_SITE_URL || '').replace(/^https?:\/\//, '') || 'smashr'}/{org.slug}/{slugify(event) || 'evento'}/{slugify(court) || 'cancha'}/tablero</span></p>
       </section>
 
-      {slotsReady ? <MatchPlayers orgId={org.id} slots={slots} onChange={setSlots} list={base.list} reload={base.reload} matchCat={cat} />
+      {slotsReady ? <MatchPlayers orgId={org.id} slots={slots} onChange={setSlots} matchCat={cat} />
         : <p className="hint">Cargando jugadores…</p>}
 
       <section className="card">

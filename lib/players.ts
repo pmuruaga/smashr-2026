@@ -39,11 +39,33 @@ const identityCols = (d: PlayerIdentity) => ({
   gender: d.gender || null, hand: d.hand || null, birth_date: d.birthDate || null, photo_url: d.photoUrl || null,
 });
 
-export async function fetchOrgPlayers(orgId: string): Promise<OrgPlayer[]> {
-  const { data, error } = await sb().from('org_players').select('category, position, ranking, ranking_points, players(*)').eq('org_id', orgId);
+export const PAGE_SIZE = 25;
+
+/** Búsqueda paginada en la base (función search_org_players, migración 0006): trae solo lo que se muestra. */
+export async function searchOrgPlayers(orgId: string, o: {
+  q?: string; category?: string; limit?: number; offset?: number; preferCat?: string; exclude?: string[];
+} = {}): Promise<{ rows: OrgPlayer[]; total: number }> {
+  const { data, error } = await sb().rpc('search_org_players', {
+    p_org: orgId, p_q: o.q || '', p_category: o.category || null, p_limit: o.limit ?? PAGE_SIZE, p_offset: o.offset ?? 0,
+    p_prefer_cat: o.preferCat || null, p_exclude: o.exclude?.length ? o.exclude : null,
+  });
   if (error) throw error;
-  return (data || []).filter((r: any) => r.players).map((r: any) => rowToOrgPlayer(r, orgId))
-    .sort((a: OrgPlayer, b: OrgPlayer) => a.lastName.localeCompare(b.lastName, 'es') || a.firstName.localeCompare(b.firstName, 'es'));
+  const rows = (data || []) as any[];
+  return { rows: rows.map(r => rowToOrgPlayer({ ...r, players: r }, orgId)), total: rows.length ? Number(rows[0].total) : 0 };
+}
+/** Categorías usadas por la org (para el filtro), sin traer jugadores. */
+export async function fetchOrgCategories(orgId: string): Promise<string[]> {
+  const { data, error } = await sb().rpc('org_player_categories', { p_org: orgId });
+  if (error) throw error;
+  return ((data || []) as string[]).sort((a, b) => a.localeCompare(b, 'es', { numeric: true }));
+}
+/** Solo los jugadores pedidos (ej. los 4 de un partido al editarlo). */
+export async function fetchOrgPlayersByIds(orgId: string, ids: string[]): Promise<OrgPlayer[]> {
+  if (!ids.length) return [];
+  const { data, error } = await sb().from('org_players').select('category, position, ranking, ranking_points, players(*)')
+    .eq('org_id', orgId).in('player_id', ids);
+  if (error) throw error;
+  return (data || []).filter((r: any) => r.players).map((r: any) => rowToOrgPlayer(r, orgId));
 }
 
 /** Alta: crea el jugador (la base lo vincula sola a la org) y guarda categoría/posición de la org. */
@@ -85,11 +107,4 @@ export function ageFrom(birth: string | null): number | null {
   let a = n.getFullYear() - b.getFullYear();
   if (n.getMonth() < b.getMonth() || (n.getMonth() === b.getMonth() && n.getDate() < b.getDate())) a--;
   return a >= 0 && a < 120 ? a : null;
-}
-/** Normaliza para buscar sin tildes ni mayúsculas */
-export const norm = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
-export function matchesQuery(p: OrgPlayer, q: string) {
-  const t = norm(q.trim()); if (!t) return true;
-  const hay = norm(`${p.firstName} ${p.lastName} ${p.lastName} ${p.firstName} ${p.dni || ''} ${p.city} ${p.category}`);
-  return t.split(/\s+/).every(w => hay.includes(w));
 }
