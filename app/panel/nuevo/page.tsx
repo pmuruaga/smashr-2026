@@ -2,14 +2,13 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useOrg } from '@/components/OrgProvider';
-import { createMatch, fetchOrgMatches, uploadImage } from '@/lib/data';
+import { createMatch, fetchOrgMatches } from '@/lib/data';
+import MatchPlayers, { emptySlots, slotReady, slotToPlayer, usePlayerBase, type Slots } from '@/components/MatchPlayers';
 import { PRESETS, presetRules, describeCfg, type MatchRules } from '@/lib/scoring/engine';
-import { slugify, type Player, type Team } from '@/lib/model';
+import { slugify, type Team } from '@/lib/model';
 import { toast, errMsg } from '@/lib/toast';
 
 const ROUNDS = ['Fase de grupos', 'Octavos de final', 'Cuartos de final', 'Semifinal', 'Final', 'Fecha de liga', 'Amistoso / exhibición'];
-type PDraft = { first: string; last: string; rank: string; age: string; side: string; hand: string; file: File | null; preview: string | null };
-const emptyP = (): PDraft => ({ first: '', last: '', rank: '', age: '', side: 'Drive', hand: 'Derecha', file: null, preview: null });
 
 export default function NuevoPartido() {
   const { org } = useOrg();
@@ -21,7 +20,8 @@ export default function NuevoPartido() {
   const [round, setRound] = useState('Final');
   const [cat, setCat] = useState('');
   const [time, setTime] = useState('');
-  const [players, setPlayers] = useState<PDraft[][]>([[emptyP(), emptyP()], [emptyP(), emptyP()]]);
+  const [slots, setSlots] = useState<Slots>(emptySlots);
+  const base = usePlayerBase(org.id);
   const [preset, setPreset] = useState('oro');
   const [cfg, setCfg] = useState<MatchRules>(presetRules('oro'));
   const [busy, setBusy] = useState(false);
@@ -33,7 +33,6 @@ export default function NuevoPartido() {
     }).catch(() => {});
   }, [org.id]);
 
-  const setP = (k: number, j: number, patch: Partial<PDraft>) => setPlayers(ps => ps.map((t, ti) => t.map((p, pj) => (ti === k && pj === j ? { ...p, ...patch } : p))));
   const setRule = <K extends keyof MatchRules>(key: K, v: MatchRules[K]) => {
     setCfg(c => { const n = { ...c, [key]: v }; if (n.tiebreakAt > n.gamesPerSet) n.tiebreakAt = n.gamesPerSet; return n; });
     setPreset('custom');
@@ -41,45 +40,15 @@ export default function NuevoPartido() {
 
   async function create(go: boolean) {
     if (!event.trim() || !court.trim()) { toast('Completá evento y cancha'); return; }
-    if (players.flat().some(p => !p.last.trim())) { toast('Falta el apellido de algún jugador'); return; }
+    if (!slots.flat().every(slotReady)) { toast('Elegí o creá los 4 jugadores'); return; }
     setBusy(true);
     try {
-      const teams = await Promise.all(players.map(async t => ({
-        players: await Promise.all(t.map(async (p): Promise<Player> => ({
-          first: p.first.trim(), last: p.last.trim(), country: 'ARG', rank: p.rank || '-', age: p.age || '-', side: p.side, hand: p.hand, points: 0,
-          photo: p.file ? await uploadImage(org.id, 'players', p.file) : null,
-        }))),
-      }))) as unknown as [Team, Team];
+      const teams = slots.map(t => ({ players: t.map(slotToPlayer) })) as unknown as [Team, Team];
       const m = await createMatch(org.id, { event: event.trim(), court: court.trim(), round, cat: cat.trim(), scheduledAt: time.trim(), teams, presetKey: preset, cfg });
       toast('Partido creado');
       router.push(go ? `/panel/partido/${m.id}` : '/panel');
     } catch (e) { toast(errMsg(e)); setBusy(false); }
   }
-
-  const pl = (k: number, j: number) => {
-    const p = players[k][j], id = `p${k}${j}`;
-    return (
-      <div className="pl" key={id}><b>Jugador {j + 1}</b>
-        <div className="row">
-          <label className="field" htmlFor={id + 'f'}>Nombre<input id={id + 'f'} value={p.first} onChange={e => setP(k, j, { first: e.target.value })} /></label>
-          <label className="field" htmlFor={id + 'l'}>Apellido<input id={id + 'l'} value={p.last} onChange={e => setP(k, j, { last: e.target.value })} /></label>
-        </div>
-        <div className="pl-photo">
-          <span className="btn sm file">Foto (opcional)<input id={id + 'p'} type="file" accept="image/*" aria-label={`Foto jugador ${j + 1}`}
-            onChange={e => { const f = e.target.files?.[0] || null; setP(k, j, { file: f, preview: f ? URL.createObjectURL(f) : null }); }} /></span>
-          {p.preview && <img src={p.preview} alt="" />}
-        </div>
-        <details><summary>Datos para la ficha (opcional)</summary>
-          <div className="row" style={{ marginTop: 8 }}>
-            <label className="field" htmlFor={id + 'r'}>Ranking<input id={id + 'r'} type="number" value={p.rank} onChange={e => setP(k, j, { rank: e.target.value })} /></label>
-            <label className="field" htmlFor={id + 'a'}>Edad<input id={id + 'a'} type="number" value={p.age} onChange={e => setP(k, j, { age: e.target.value })} /></label>
-            <label className="field" htmlFor={id + 's'}>Posición<select id={id + 's'} value={p.side} onChange={e => setP(k, j, { side: e.target.value })}><option>Drive</option><option>Revés</option></select></label>
-            <label className="field" htmlFor={id + 'h'}>Mano<select id={id + 'h'} value={p.hand} onChange={e => setP(k, j, { hand: e.target.value })}><option>Derecha</option><option>Zurda</option></select></label>
-          </div>
-        </details>
-      </div>
-    );
-  };
 
   return (
     <main className="page">
@@ -100,10 +69,7 @@ export default function NuevoPartido() {
         <p className="hint">Tablero de esta cancha: <span className="copy">{(process.env.NEXT_PUBLIC_SITE_URL || '').replace(/^https?:\/\//, '') || 'smashr'}/{org.slug}/{slugify(event) || 'evento'}/{slugify(court) || 'cancha'}/tablero</span></p>
       </section>
 
-      <div className="grid2">
-        <section className="card team-card"><h2>Pareja A</h2><div style={{ display: 'grid', gap: 10 }}>{pl(0, 0)}{pl(0, 1)}</div></section>
-        <section className="card team-card b"><h2>Pareja B</h2><div style={{ display: 'grid', gap: 10 }}>{pl(1, 0)}{pl(1, 1)}</div></section>
-      </div>
+      <MatchPlayers orgId={org.id} slots={slots} onChange={setSlots} list={base.list} reload={base.reload} matchCat={cat} />
 
       <section className="card">
         <h2>Formato del partido</h2>
