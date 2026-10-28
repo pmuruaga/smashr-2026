@@ -1,5 +1,7 @@
 -- Smashr v2 · 0004 · Jugadores por organización
 -- Cambio 100 % aditivo: crea 2 tablas, 2 funciones y 1 trigger nuevos.
+-- players     = identidad compartida (la edita solo la org dueña)
+-- org_players = vínculo + datos propios de cada org (categoría, posición)
 -- No modifica ni borra nada existente (matches.teams sigue igual; el vínculo
 -- partido ↔ jugador se hará guardando player_id dentro del jsonb de teams).
 
@@ -14,9 +16,7 @@ create table public.players (
   dni           text check (dni ~ '^[0-9]{6,9}$'),            -- opcional, solo dígitos
   city          text not null default '',
   gender        text check (gender in ('M','F','X')),
-  category      text not null default '',                     -- libre: '4ta', '7ma', 'Suma 12'…
   hand          text check (hand in ('derecha','izquierda')),
-  position      text check (position in ('drive','reves','ambas')),
   birth_date    date check (birth_date >= '1900-01-01'),
   photo_url     text,                                         -- brand-assets/orgs/{org_id}/players/…
   created_by    uuid default auth.uid() references auth.users(id) on delete set null,
@@ -35,10 +35,15 @@ create trigger players_touch before update on public.players
 create table public.org_players (
   org_id     uuid not null references public.organizations(id) on delete cascade,
   player_id  uuid not null references public.players(id) on delete cascade,
+  category   text not null default '',                          -- propia de cada org: '4ta', '7ma', 'Suma 12'…
+  position   text check (position in ('drive','reves','ambas')),-- propia de cada org
+  updated_at timestamptz not null default now(),
   added_at   timestamptz not null default now(),
   primary key (org_id, player_id)
 );
 create index org_players_player_idx on public.org_players(player_id);
+create trigger org_players_touch before update on public.org_players
+  for each row execute function public.touch_updated_at();
 
 -- Al crear un jugador, la org dueña queda vinculada automáticamente
 create or replace function public.players_link_owner() returns trigger
@@ -70,9 +75,15 @@ create policy players_delete_owner on public.players for delete to authenticated
 
 create policy org_players_read_members on public.org_players for select to authenticated
   using (public.is_member(org_id));
+-- Cada org edita SOLO su categoría y posición del jugador (no puede tocar org_id/player_id)
+create policy org_players_update_members on public.org_players for update to authenticated
+  using (public.is_member(org_id)) with check (public.is_member(org_id));
+revoke update on public.org_players from authenticated, anon;
+grant update (category, position) on public.org_players to authenticated;
 -- Sin políticas de insert/delete: compartir con otra org solo vía la función de admin.
 
 -- 4) Compartir jugadores con otra org (solo superusuario) ---------------------
+-- La org destino arranca con la categoría/posición que tenía la org origen.
 -- Uso: select public.admin_share_players('<org_origen>', '<org_destino>');          -- todos
 --      select public.admin_share_players('<org_origen>', '<org_destino>', array['<id>']::uuid[]);
 create or replace function public.admin_share_players(p_from uuid, p_to uuid, p_ids uuid[] default null)
@@ -80,9 +91,11 @@ returns int language plpgsql security definer set search_path = '' as $$
 declare n int;
 begin
   if not public.is_app_admin() then raise exception 'No autorizado'; end if;
-  insert into public.org_players(org_id, player_id)
-    select p_to, p.id from public.players p
-    where p.owner_org_id = p_from and (p_ids is null or p.id = any(p_ids))
+  insert into public.org_players(org_id, player_id, category, position)
+    select p_to, op.player_id, op.category, op.position
+    from public.org_players op
+    join public.players p on p.id = op.player_id and p.owner_org_id = p_from
+    where op.org_id = p_from and (p_ids is null or op.player_id = any(p_ids))
   on conflict do nothing;
   get diagnostics n = row_count;
   return n;
