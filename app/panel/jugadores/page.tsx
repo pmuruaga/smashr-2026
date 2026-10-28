@@ -54,7 +54,7 @@ export default function JugadoresPage() {
         <div className="plist">
           {shown.map(p => {
             const age = ageFrom(p.birthDate);
-            const meta = [p.category, p.position && POSITIONS[p.position], p.hand && HANDS[p.hand], p.city, age !== null && `${age} años`].filter(Boolean).join(' · ');
+            const meta = [p.category, p.ranking && `#${p.ranking}`, p.rankingPoints > 0 && `${p.rankingPoints.toLocaleString('es-AR')} pts`, p.position && POSITIONS[p.position], p.hand && HANDS[p.hand], p.city, age !== null && `${age} años`].filter(Boolean).join(' · ');
             return (
               <div key={p.id} className="prow">
                 <div className="pav">{p.photoUrl ? <img src={p.photoUrl} alt="" /> : <span>{(p.firstName[0] || '') + (p.lastName[0] || '')}</span>}</div>

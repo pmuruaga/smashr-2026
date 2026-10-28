@@ -21,7 +21,7 @@ export interface PlayerIdentity {
   gender: Gender | null; hand: Hand | null; birthDate: string | null; photoUrl: string | null;
 }
 /** Datos propios de la org (tabla org_players) */
-export interface PlayerOrgData { category: string; position: Position | null }
+export interface PlayerOrgData { category: string; position: Position | null; ranking: number | null; rankingPoints: number }
 export interface OrgPlayer extends PlayerIdentity, PlayerOrgData { id: string; ownerOrgId: string | null; isOwner: boolean }
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -31,7 +31,7 @@ function rowToOrgPlayer(r: any, orgId: string): OrgPlayer {
     id: p.id, ownerOrgId: p.owner_org_id, isOwner: p.owner_org_id === orgId,
     firstName: p.first_name, lastName: p.last_name, dni: p.dni, city: p.city || '',
     gender: p.gender, hand: p.hand, birthDate: p.birth_date, photoUrl: p.photo_url,
-    category: r.category || '', position: r.position,
+    category: r.category || '', position: r.position, ranking: r.ranking ?? null, rankingPoints: r.ranking_points ?? 0,
   };
 }
 const identityCols = (d: PlayerIdentity) => ({
@@ -40,7 +40,7 @@ const identityCols = (d: PlayerIdentity) => ({
 });
 
 export async function fetchOrgPlayers(orgId: string): Promise<OrgPlayer[]> {
-  const { data, error } = await sb().from('org_players').select('category, position, players(*)').eq('org_id', orgId);
+  const { data, error } = await sb().from('org_players').select('category, position, ranking, ranking_points, players(*)').eq('org_id', orgId);
   if (error) throw error;
   return (data || []).filter((r: any) => r.players).map((r: any) => rowToOrgPlayer(r, orgId))
     .sort((a: OrgPlayer, b: OrgPlayer) => a.lastName.localeCompare(b.lastName, 'es') || a.firstName.localeCompare(b.firstName, 'es'));
@@ -59,9 +59,9 @@ export async function updatePlayerIdentity(id: string, d: PlayerIdentity) {
   const { error } = await sb().from('players').update(identityCols(d)).eq('id', id);
   if (error) throw friendly(error);
 }
-/** Cada org cambia su propia categoría/posición. */
+/** Cada org cambia su propia categoría, posición y ranking. */
 export async function updateOrgPlayer(orgId: string, playerId: string, o: PlayerOrgData) {
-  const { error } = await sb().from('org_players').update({ category: o.category.trim(), position: o.position || null })
+  const { error } = await sb().from('org_players').update({ category: o.category.trim(), position: o.position || null, ranking: o.ranking || null, ranking_points: Math.max(0, o.rankingPoints || 0) })
     .eq('org_id', orgId).eq('player_id', playerId);
   if (error) throw friendly(error);
 }

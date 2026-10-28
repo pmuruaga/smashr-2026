@@ -3,19 +3,13 @@ import Link from 'next/link';
 import { use, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useOrg } from '@/components/OrgProvider';
-import { fetchMatch, fetchOrgMatches, updateScheduledMatch, uploadImage } from '@/lib/data';
+import { fetchMatch, fetchOrgMatches, updateScheduledMatch } from '@/lib/data';
+import MatchPlayers, { emptySlots, slotFromMatch, slotReady, slotToPlayer, usePlayerBase, type Slots } from '@/components/MatchPlayers';
 import { PRESETS, presetRules, describeCfg, type MatchRules } from '@/lib/scoring/engine';
-import { slugify, type Match, type Player, type Team } from '@/lib/model';
+import { slugify, type Match, type Team } from '@/lib/model';
 import { toast, errMsg } from '@/lib/toast';
 
 const ROUNDS = ['Fase de grupos', 'Octavos de final', 'Cuartos de final', 'Semifinal', 'Final', 'Fecha de liga', 'Amistoso / exhibición'];
-type PDraft = { first: string; last: string; rank: string; age: string; side: string; hand: string; file: File | null; preview: string | null; orig: Player | null };
-const emptyP = (): PDraft => ({ first: '', last: '', rank: '', age: '', side: 'Drive', hand: 'Derecha', file: null, preview: null, orig: null });
-const fromPlayer = (p: Player): PDraft => ({
-  first: p.first || '', last: p.last || '', rank: p.rank === '-' ? '' : String(p.rank ?? ''), age: p.age === '-' ? '' : String(p.age ?? ''),
-  side: p.side || 'Drive', hand: p.hand || 'Derecha', file: null, preview: p.photo, orig: p,
-});
-
 /* Editar un partido que todavía no empezó (estado Programado). Misma carga que Nuevo partido. */
 export default function EditarPartido({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -29,7 +23,9 @@ export default function EditarPartido({ params }: { params: Promise<{ id: string
   const [round, setRound] = useState('Final');
   const [cat, setCat] = useState('');
   const [time, setTime] = useState('');
-  const [players, setPlayers] = useState<PDraft[][]>([[emptyP(), emptyP()], [emptyP(), emptyP()]]);
+  const [slots, setSlots] = useState<Slots>(emptySlots);
+  const [slotsReady, setSlotsReady] = useState(false);
+  const base = usePlayerBase(org.id);
   const [preset, setPreset] = useState('oro');
   const [cfg, setCfg] = useState<MatchRules>(presetRules('oro'));
   const [busy, setBusy] = useState(false);
@@ -42,12 +38,16 @@ export default function EditarPartido({ params }: { params: Promise<{ id: string
       if (!m || m.orgId !== org.id) { setOrig(null); return; }
       setOrig(m);
       setEvent(m.event); setCourt(m.court); setRound(m.round); setCat(m.cat); setTime(m.scheduledAt);
-      setPlayers(m.teams.map(t => t.players.map(fromPlayer)));
       setPreset(m.presetKey in PRESETS ? m.presetKey : 'custom'); setCfg(m.cfg);
     }).catch(() => setOrig(null));
   }, [org.id, id]);
 
-  const setP = (k: number, j: number, patch: Partial<PDraft>) => setPlayers(ps => ps.map((t, ti) => t.map((p, pj) => (ti === k && pj === j ? { ...p, ...patch } : p))));
+  // armar los 4 lugares cuando están el partido y la base de jugadores
+  useEffect(() => {
+    if (slotsReady || !orig || !base.list) return;
+    setSlots(orig.teams.map(t => t.players.map(p => slotFromMatch(p, base.list as NonNullable<typeof base.list>))));
+    setSlotsReady(true);
+  }, [orig, base.list, slotsReady]);
   const setRule = <K extends keyof MatchRules>(key: K, v: MatchRules[K]) => {
     setCfg(c => { const n = { ...c, [key]: v }; if (n.tiebreakAt > n.gamesPerSet) n.tiebreakAt = n.gamesPerSet; return n; });
     setPreset('custom');
@@ -56,47 +56,15 @@ export default function EditarPartido({ params }: { params: Promise<{ id: string
   async function save() {
     if (!orig) return;
     if (!event.trim() || !court.trim()) { toast('Completá evento y cancha'); return; }
-    if (players.flat().some(p => !p.last.trim())) { toast('Falta el apellido de algún jugador'); return; }
+    if (!slots.flat().every(slotReady)) { toast('Elegí o creá los 4 jugadores'); return; }
     setBusy(true);
     try {
-      const teams = await Promise.all(players.map(async t => ({
-        players: await Promise.all(t.map(async (p): Promise<Player> => ({
-          ...(p.orig || {}),
-          first: p.first.trim(), last: p.last.trim(), country: p.orig?.country || 'ARG', rank: p.rank || '-', age: p.age || '-', side: p.side, hand: p.hand,
-          points: p.orig?.points ?? 0,
-          photo: p.file ? await uploadImage(org.id, 'players', p.file) : (p.orig?.photo ?? null),
-        }))),
-      }))) as unknown as [Team, Team];
+      const teams = slots.map(t => ({ players: t.map(slotToPlayer) })) as unknown as [Team, Team];
       await updateScheduledMatch(orig, { event: event.trim(), court: court.trim(), round, cat: cat.trim(), scheduledAt: time.trim(), teams, presetKey: preset, cfg });
       toast('Partido actualizado');
       router.push('/panel');
     } catch (e) { toast(errMsg(e)); setBusy(false); }
   }
-
-  const pl = (k: number, j: number) => {
-    const p = players[k][j], id = `p${k}${j}`;
-    return (
-      <div className="pl" key={id}><b>Jugador {j + 1}</b>
-        <div className="row">
-          <label className="field" htmlFor={id + 'f'}>Nombre<input id={id + 'f'} value={p.first} onChange={e => setP(k, j, { first: e.target.value })} /></label>
-          <label className="field" htmlFor={id + 'l'}>Apellido<input id={id + 'l'} value={p.last} onChange={e => setP(k, j, { last: e.target.value })} /></label>
-        </div>
-        <div className="pl-photo">
-          <span className="btn sm file">Foto (opcional)<input id={id + 'p'} type="file" accept="image/*" aria-label={`Foto jugador ${j + 1}`}
-            onChange={e => { const f = e.target.files?.[0] || null; setP(k, j, { file: f, preview: f ? URL.createObjectURL(f) : null }); }} /></span>
-          {p.preview && <img src={p.preview} alt="" />}
-        </div>
-        <details><summary>Datos para la ficha (opcional)</summary>
-          <div className="row" style={{ marginTop: 8 }}>
-            <label className="field" htmlFor={id + 'r'}>Ranking<input id={id + 'r'} type="number" value={p.rank} onChange={e => setP(k, j, { rank: e.target.value })} /></label>
-            <label className="field" htmlFor={id + 'a'}>Edad<input id={id + 'a'} type="number" value={p.age} onChange={e => setP(k, j, { age: e.target.value })} /></label>
-            <label className="field" htmlFor={id + 's'}>Posición<select id={id + 's'} value={p.side} onChange={e => setP(k, j, { side: e.target.value })}><option>Drive</option><option>Revés</option></select></label>
-            <label className="field" htmlFor={id + 'h'}>Mano<select id={id + 'h'} value={p.hand} onChange={e => setP(k, j, { hand: e.target.value })}><option>Derecha</option><option>Zurda</option></select></label>
-          </div>
-        </details>
-      </div>
-    );
-  };
 
   if (orig === undefined) return <main className="page"><p className="hint">Cargando partido…</p></main>;
   if (orig === null) return <main className="page"><p className="hint">No encontramos ese partido en tu organización. Volvé a <Link href="/panel">Partidos</Link>.</p></main>;
@@ -121,10 +89,8 @@ export default function EditarPartido({ params }: { params: Promise<{ id: string
         <p className="hint">Tablero de esta cancha: <span className="copy">{(process.env.NEXT_PUBLIC_SITE_URL || '').replace(/^https?:\/\//, '') || 'smashr'}/{org.slug}/{slugify(event) || 'evento'}/{slugify(court) || 'cancha'}/tablero</span></p>
       </section>
 
-      <div className="grid2">
-        <section className="card team-card"><h2>Pareja A</h2><div style={{ display: 'grid', gap: 10 }}>{pl(0, 0)}{pl(0, 1)}</div></section>
-        <section className="card team-card b"><h2>Pareja B</h2><div style={{ display: 'grid', gap: 10 }}>{pl(1, 0)}{pl(1, 1)}</div></section>
-      </div>
+      {slotsReady ? <MatchPlayers orgId={org.id} slots={slots} onChange={setSlots} list={base.list} reload={base.reload} matchCat={cat} />
+        : <p className="hint">Cargando jugadores…</p>}
 
       <section className="card">
         <h2>Formato del partido</h2>
@@ -158,7 +124,7 @@ export default function EditarPartido({ params }: { params: Promise<{ id: string
 
       <div className="actions">
         <Link className="btn" href="/panel">Cancelar</Link>
-        <button className="btn primary" type="button" disabled={busy} onClick={save}>{busy ? 'Guardando…' : 'Guardar cambios'}</button>
+        <button className="btn primary" type="button" disabled={busy || !slotsReady} onClick={save}>{busy ? 'Guardando…' : 'Guardar cambios'}</button>
       </div>
     </main>
   );

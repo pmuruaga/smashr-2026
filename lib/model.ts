@@ -1,7 +1,11 @@
 /* Modelo de la app: tipos, mapeo de filas de Supabase y utilidades compartidas. */
 import type { MatchRules, MatchState } from './scoring/engine';
 
-export interface Player { first: string; last: string; country: string; rank: string | number; age: string | number; side: string; hand: string; points: number; photo: string | null }
+export interface Player {
+  first: string; last: string; country: string; rank: string | number; age: string | number; side: string; hand: string; points: number; photo: string | null;
+  /** id en la tabla players (partidos nuevos). Los partidos viejos, cargados a mano, no lo tienen. */
+  playerId?: string;
+}
 export interface Team { players: [Player, Player] }
 export type TossFace = 'paleta' | 'pelota';
 export interface Display { scene: SceneKey; timerEndsAt: number | null; timerSec: number | null; bioTeam: number; since: number; toss?: { result: TossFace; at: number } | null }
