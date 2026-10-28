@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useOrg } from '@/components/OrgProvider';
 import { createMatch, fetchOrgMatches } from '@/lib/data';
-import MatchPlayers, { emptySlots, slotReady, slotToPlayer, usePlayerBase, type Slots } from '@/components/MatchPlayers';
+import MatchPlayers, { emptySlots, slotReady, slotToPlayer, type Slots } from '@/components/MatchPlayers';
 import { PRESETS, presetRules, describeCfg, type MatchRules } from '@/lib/scoring/engine';
 import { slugify, type Team } from '@/lib/model';
 import { toast, errMsg } from '@/lib/toast';
@@ -21,7 +21,6 @@ export default function NuevoPartido() {
   const [cat, setCat] = useState('');
   const [time, setTime] = useState('');
   const [slots, setSlots] = useState<Slots>(emptySlots);
-  const base = usePlayerBase(org.id);
   const [preset, setPreset] = useState('oro');
   const [cfg, setCfg] = useState<MatchRules>(presetRules('oro'));
   const [busy, setBusy] = useState(false);
@@ -69,7 +68,7 @@ export default function NuevoPartido() {
         <p className="hint">Tablero de esta cancha: <span className="copy">{(process.env.NEXT_PUBLIC_SITE_URL || '').replace(/^https?:\/\//, '') || 'smashr'}/{org.slug}/{slugify(event) || 'evento'}/{slugify(court) || 'cancha'}/tablero</span></p>
       </section>
 
-      <MatchPlayers orgId={org.id} slots={slots} onChange={setSlots} list={base.list} reload={base.reload} matchCat={cat} />
+      <MatchPlayers orgId={org.id} slots={slots} onChange={setSlots} matchCat={cat} />
 
       <section className="card">
         <h2>Formato del partido</h2>

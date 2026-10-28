@@ -1,33 +1,27 @@
 'use client';
 /* Parejas de un partido: cada lugar busca un jugador de la base de la org o crea uno nuevo (queda guardado).
+   La búsqueda la resuelve la base (search_org_players): trae como máximo 8 resultados, no la lista entera.
    El partido guarda una copia de los datos + playerId, así los partidos jugados no cambian si después se edita el jugador. */
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import PlayerForm, { type PlayerDraft } from './PlayerForm';
-import { fetchOrgPlayers, matchesQuery, norm, HANDS, POSITIONS, type OrgPlayer } from '@/lib/players';
+import { fetchOrgCategories, fetchOrgPlayersByIds, searchOrgPlayers, HANDS, POSITIONS, type OrgPlayer } from '@/lib/players';
 import { slotFor, slotReady, HAND_LABELS, SIDES, type Slot, type Slots } from '@/lib/slots';
+import { useDebounced } from '@/lib/hooks';
 export { emptySlots, slotFromMatch, slotReady, slotToPlayer, type Slots } from '@/lib/slots';
 import { toast, errMsg } from '@/lib/toast';
 
-/** Base de jugadores de la org (para el buscador) */
-export function usePlayerBase(orgId: string) {
-  const [list, setList] = useState<OrgPlayer[] | null>(null);
-  const reload = useCallback(async () => {
-    try { const l = await fetchOrgPlayers(orgId); setList(l); return l; } catch (e) { toast(errMsg(e)); setList([]); return []; }
-  }, [orgId]);
-  useEffect(() => { reload(); }, [reload]);
-  return { list, reload };
-}
+const MAX_RESULTS = 8;
 
-export default function MatchPlayers({ orgId, slots, onChange, list, reload, matchCat }: {
-  orgId: string; slots: Slots; onChange: (s: Slots) => void;
-  list: OrgPlayer[] | null; reload: () => Promise<OrgPlayer[]>; matchCat: string;
+export default function MatchPlayers({ orgId, slots, onChange, matchCat }: {
+  orgId: string; slots: Slots; onChange: (s: Slots) => void; matchCat: string;
 }) {
-  const categories = useMemo(() => [...new Set((list || []).map(p => p.category).filter(Boolean))], [list]);
+  const [categories, setCategories] = useState<string[]>([]);
+  useEffect(() => { fetchOrgCategories(orgId).then(setCategories).catch(() => {}); }, [orgId]);
   const set = (k: number, j: number, s: Slot) => onChange(slots.map((t, ti) => t.map((x, pj) => (ti === k && pj === j ? s : x))));
-  const taken = (k: number, j: number) => new Set(slots.flatMap((t, ti) => t.map((x, pj) => (ti === k && pj === j ? null : x.player?.id))).filter(Boolean) as string[]);
+  const taken = (k: number, j: number) => slots.flatMap((t, ti) => t.map((x, pj) => (ti === k && pj === j ? null : x.player?.id))).filter(Boolean) as string[];
   const slot = (k: number, j: number) => (
     <PlayerSlot key={`${k}${j}`} id={`s${k}${j}`} label={`Jugador ${j + 1}`} orgId={orgId} slot={slots[k][j]} onChange={s => set(k, j, s)}
-      list={list} reload={reload} taken={taken(k, j)} matchCat={matchCat} categories={categories} />
+      taken={taken(k, j)} matchCat={matchCat} categories={categories} />
   );
   return (
     <div className="grid2">
@@ -37,27 +31,35 @@ export default function MatchPlayers({ orgId, slots, onChange, list, reload, mat
   );
 }
 
-function PlayerSlot({ id, label, orgId, slot, onChange, list, reload, taken, matchCat, categories }: {
+function PlayerSlot({ id, label, orgId, slot, onChange, taken, matchCat, categories }: {
   id: string; label: string; orgId: string; slot: Slot; onChange: (s: Slot) => void;
-  list: OrgPlayer[] | null; reload: () => Promise<OrgPlayer[]>; taken: Set<string>; matchCat: string; categories: string[];
+  taken: string[]; matchCat: string; categories: string[];
 }) {
   const [searching, setSearching] = useState(false);
   const [q, setQ] = useState('');
   const [open, setOpen] = useState(false);
   const [hi, setHi] = useState(0);
   const [creating, setCreating] = useState<PlayerDraft | null>(null);
+  const [results, setResults] = useState<OrgPlayer[] | null>(null);
+  const [loading, setLoading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const reqId = useRef(0);
   const showSearch = !slot.player && (!slot.legacy || searching);
+  const dq = useDebounced(q, 250);
+  const takenKey = taken.join(',');
 
-  const results = useMemo(() => {
-    if (!list) return [];
-    const mc = norm(matchCat);
-    const sameCat = (p: OrgPlayer) => !!p.category && !!mc && mc.includes(norm(p.category));
-    return list.filter(p => !taken.has(p.id) && matchesQuery(p, q))
-      .sort((a, b) => Number(sameCat(b)) - Number(sameCat(a)))
-      .slice(0, 8);
-  }, [list, taken, q, matchCat]);
-  const options = [...results.map(p => ({ kind: 'p' as const, p })), { kind: 'new' as const }];
+  // consulta la base solo con el desplegable abierto
+  useEffect(() => {
+    if (!open || !showSearch) return;
+    const my = ++reqId.current;
+    setLoading(true);
+    searchOrgPlayers(orgId, { q: dq, limit: MAX_RESULTS, preferCat: matchCat, exclude: takenKey ? takenKey.split(',') : [] })
+      .then(r => { if (my === reqId.current) { setResults(r.rows); setHi(0); setLoading(false); } })
+      .catch(e => { if (my === reqId.current) { toast(errMsg(e)); setResults([]); setLoading(false); } });
+  }, [open, showSearch, orgId, dq, matchCat, takenKey]);
+
+  const shown = results || [];
+  const options = [...shown.map(p => ({ kind: 'p' as const, p })), { kind: 'new' as const }];
 
   function pick(p: OrgPlayer) { onChange(slotFor(p, slot.base)); setQ(''); setOpen(false); setSearching(false); }
   function startCreate() {
@@ -78,7 +80,7 @@ function PlayerSlot({ id, label, orgId, slot, onChange, list, reload, taken, mat
       <div className="pl"><b>{label}</b>
         <PlayerForm quick orgId={orgId} player={null} initial={creating} categories={categories}
           onCancel={() => setCreating(null)}
-          onSaved={async newId => { const l = await reload(); const p = l.find(x => x.id === newId); setCreating(null); if (p) pick(p); }} />
+          onSaved={async newId => { const [p] = await fetchOrgPlayersByIds(orgId, [newId]).catch(() => []); setCreating(null); if (p) pick(p); }} />
       </div>
     );
   }
@@ -96,19 +98,20 @@ function PlayerSlot({ id, label, orgId, slot, onChange, list, reload, taken, mat
         <div className="pick">
           <label className="field" htmlFor={id + 'q'}>Buscar jugador
             <input id={id + 'q'} ref={inputRef} type="search" role="combobox" aria-expanded={open} aria-controls={id + 'list'} autoComplete="off"
-              value={q} placeholder={list ? 'Nombre, apellido o DNI' : 'Cargando jugadores…'}
+              value={q} placeholder="Nombre, apellido o DNI"
               onChange={e => { setQ(e.target.value); setOpen(true); setHi(0); }} onFocus={() => setOpen(true)}
               onBlur={() => setTimeout(() => setOpen(false), 150)} onKeyDown={key} />
           </label>
-          {open && list && (
+          {open && (
             <ul className="pick-list" id={id + 'list'} role="listbox">
-              {results.map((p, i) => (
+              {shown.map((p, i) => (
                 <li key={p.id} role="option" aria-selected={hi === i} className={hi === i ? 'on' : ''} onMouseDown={e => e.preventDefault()} onClick={() => pick(p)}>
                   <b>{p.lastName}, {p.firstName}</b><small>{meta(p) || 'Sin datos de ficha'}</small>
                 </li>
               ))}
-              {!results.length && <li className="none">{list.length ? 'No hay jugadores que coincidan' : 'Todavía no hay jugadores en tu base'}</li>}
-              <li role="option" aria-selected={hi === results.length} className={`new${hi === results.length ? ' on' : ''}`} onMouseDown={e => e.preventDefault()} onClick={startCreate}>
+              {results === null || (loading && !shown.length) ? <li className="none">Buscando…</li>
+                : !shown.length && <li className="none">{dq.trim() ? 'No hay jugadores que coincidan' : 'No hay jugadores en tu base para elegir'}</li>}
+              <li role="option" aria-selected={hi === shown.length} className={`new${hi === shown.length ? ' on' : ''}`} onMouseDown={e => e.preventDefault()} onClick={startCreate}>
                 ＋ Crear jugador nuevo{q.trim() ? ` “${q.trim()}”` : ''}
               </li>
             </ul>
